@@ -10,7 +10,7 @@ The easiest way to run SIRQ is using Docker. This method automatically handles a
 
 > Quick note: the provided `docker-compose.yml` maps container port `80` to host port `8080` (so the app will be available at `http://localhost:8080`).
 
-### Using docker-compose (recommended)
+### Using Docker Compose CLI (recommended)
 
 1. **Clone the repository**
    ```bash
@@ -20,17 +20,17 @@ The easiest way to run SIRQ is using Docker. This method automatically handles a
 
 2. **Build & start the service (detached)**
    ```bash
-   docker-compose up -d --build
+   docker compose up -d --build
    ```
 
 3. **View logs**
    ```bash
-   docker-compose logs -f sirq-app
+   docker compose logs -f sirq-app
    ```
 
 4. **Stop and remove containers**
    ```bash
-   docker-compose down
+   docker compose down
    ```
 
 ### Using Docker CLI (no docker-compose)
@@ -59,7 +59,7 @@ The easiest way to run SIRQ is using Docker. This method automatically handles a
 
 - If port 8080 is already in use, map to a different host port (for example `-p 8081:80`), or update `docker-compose.yml`.
 - To run without building (if no source changes were made since the last build) omit `--build`.
-- If you prefer the new Docker CLI syntax, `docker compose` (no hyphen) works the same as `docker-compose` on recent Docker versions.
+- Use the Docker Compose V2 CLI (`docker compose` — no hyphen), e.g. `docker compose up -d --build`; this is the recommended syntax on recent Docker versions.
 
 ---
 
