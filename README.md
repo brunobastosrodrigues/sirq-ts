@@ -1,7 +1,9 @@
 # SIRQ Simulator
 **System for Interactive Reservation and Queueing**
 
-A scientific simulation platform benchmarking Real-Time Auctions against FIFO (First-In, First-Out) mechanisms for electric truck charging infrastructure. This project simulates rational economic agents with heterogeneous Value of Time (VOT) to demonstrate allocative efficiency in constrained infrastructure.
+Same idea of the Python-based repo https://github.com/brunobastosrodrigues/sirq-simulator, but "interpreted" by Google AI.
+
+This project simulates rational economic agents with heterogeneous Value of Time (VOT) to demonstrate allocative efficiency in constrained infrastructure. The idea is to benchmark SIRQ Auctions against FIFO (First-In, First-Out) for electric truck charging infrastructure. The core hypothesis: Replacing FIFO with an auction mechanism maximizes economic efficiency and protects critical supply chains (e.g., medical/perishable logistics) without requiring physical infrastructure expansion.
 
 ## 🚀 Quick Start (Local Installation)
 
