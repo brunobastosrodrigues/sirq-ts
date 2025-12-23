@@ -1,5 +1,5 @@
 {
-  "name": "SIRQ Simulator",
+  "name": "SIRQ: System for Interactive Reservation and Queueing",
   "description": "A scientific simulation platform benchmarking Real-Time Auctions against FIFO for electric truck charging infrastructure.",
   "requestFramePermissions": []
 }

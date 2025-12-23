@@ -16,8 +16,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onOpenDocs })
           <div className="flex items-center gap-3">
              <div className="w-10 h-10 bg-slate-900 text-white flex items-center justify-center font-serif font-bold text-xl rounded">S</div>
              <div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none">SIRQ Project</h1>
-                <p className="text-xs text-slate-500 font-mono mt-1">v1.0.6-research // BUILD_ID: 2024-RC1</p>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none">SIRQ</h1>
+                <p className="text-xs text-slate-500 font-mono mt-1">v1.0.7-research // BUILD_ID: 2024-RC2</p>
              </div>
           </div>
           <div className="flex flex-col md:items-end text-sm font-medium text-slate-600">
@@ -31,11 +31,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onOpenDocs })
         
         {/* Abstract / Title Section */}
         <div className="mb-16 border-b border-slate-200 pb-12">
-            <span className="text-indigo-600 font-bold tracking-wider text-xs uppercase mb-2 block">Interactive Simulation Environment</span>
-            <h2 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 mb-6 max-w-4xl leading-tight">
-              Allocative Efficiency in Electric Infrastructure: <br/>
-              <span className="text-slate-600">Benchmarking Real-Time Auctions against FIFO Queuing</span>
-            </h2>
+            <span className="text-indigo-600 font-bold tracking-wider text-xs uppercase mb-2 block">Discrete-Event & Monte Carlo Simulation</span>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mt-10">
                 <div className="md:col-span-2">

@@ -1,42 +1,76 @@
-import { Agent, AgentType, Charger, StationState, SimulationConfig, HistoricalDataPoint, MicroDataPoint } from '../types';
+import { Agent, AgentType, Charger, StationState, SimulationConfig, HistoricalDataPoint, MicroDataPoint, SimulationSnapshot } from '../types';
 
 // Helper to generate random ID
 const generateId = () => Math.random().toString(36).substr(2, 9);
-
-// Scientific Profiles
-const TRUCK_PROFILES = {
-  [AgentType.CRITICAL]: {
-    votRange: [150.0, 300.0],
-    priceSensitivity: 0.1,
-    maxPriceTolerance: 5.00,
-    patience: 240, // minutes
-  },
-  [AgentType.STANDARD]: {
-    votRange: [50.0, 80.0],
-    priceSensitivity: 0.5,
-    maxPriceTolerance: 1.50,
-    patience: 120, // minutes
-  },
-  [AgentType.ECONOMY]: {
-    votRange: [15.0, 30.0],
-    priceSensitivity: 0.9,
-    maxPriceTolerance: 0.80,
-    patience: 45, // minutes
-  },
-};
 
 export class SimulationEngine {
   fifoState: StationState;
   sirqState: StationState;
   config: SimulationConfig;
   tickCount: number;
+  
+  // Advanced Stats Tracking - Split by Strategy where necessary for comparison
+  fifoCumulativeCriticalArrivals: number;
+  fifoCumulativeCriticalFailures: number;
+  
+  sirqCumulativeCriticalArrivals: number;
+  sirqCumulativeCriticalFailures: number;
+
+  cumulativeSirqSurplus: number; // Subsidy Pool
+  cumulativePreemptions: number;
+  allWaitTimes: number[]; // For Gini
 
   constructor(config: SimulationConfig) {
     this.config = config;
     this.tickCount = 0;
+    
+    this.fifoCumulativeCriticalArrivals = 0;
+    this.fifoCumulativeCriticalFailures = 0;
+    this.sirqCumulativeCriticalArrivals = 0;
+    this.sirqCumulativeCriticalFailures = 0;
+
+    this.cumulativeSirqSurplus = 0;
+    this.cumulativePreemptions = 0;
+    this.allWaitTimes = [];
+    
     this.fifoState = this.initializeState('FIFO');
     this.sirqState = this.initializeState('SIRQ');
   }
+
+  // --- Snapshot / Restore Logic ---
+  public getSnapshot(): SimulationSnapshot {
+      return {
+          tickCount: this.tickCount,
+          // Deep copy states to prevent reference issues
+          fifoState: JSON.parse(JSON.stringify(this.fifoState)),
+          sirqState: JSON.parse(JSON.stringify(this.sirqState)),
+          
+          fifoCumulativeCriticalArrivals: this.fifoCumulativeCriticalArrivals,
+          fifoCumulativeCriticalFailures: this.fifoCumulativeCriticalFailures,
+          sirqCumulativeCriticalArrivals: this.sirqCumulativeCriticalArrivals,
+          sirqCumulativeCriticalFailures: this.sirqCumulativeCriticalFailures,
+
+          cumulativeSirqSurplus: this.cumulativeSirqSurplus,
+          cumulativePreemptions: this.cumulativePreemptions,
+          allWaitTimes: [...this.allWaitTimes]
+      };
+  }
+
+  public restoreSnapshot(snapshot: SimulationSnapshot) {
+      this.tickCount = snapshot.tickCount;
+      this.fifoState = snapshot.fifoState;
+      this.sirqState = snapshot.sirqState;
+      
+      this.fifoCumulativeCriticalArrivals = snapshot.fifoCumulativeCriticalArrivals;
+      this.fifoCumulativeCriticalFailures = snapshot.fifoCumulativeCriticalFailures;
+      this.sirqCumulativeCriticalArrivals = snapshot.sirqCumulativeCriticalArrivals;
+      this.sirqCumulativeCriticalFailures = snapshot.sirqCumulativeCriticalFailures;
+
+      this.cumulativeSirqSurplus = snapshot.cumulativeSirqSurplus;
+      this.cumulativePreemptions = snapshot.cumulativePreemptions;
+      this.allWaitTimes = snapshot.allWaitTimes || [];
+  }
+  // --------------------------------
 
   private initializeState(strategy: 'FIFO' | 'SIRQ'): StationState {
     return {
@@ -74,16 +108,23 @@ export class SimulationEngine {
     
     if (rand < pCrit) {
         type = AgentType.CRITICAL;
+        // Increment global counters for both strategies
+        this.fifoCumulativeCriticalArrivals++;
+        this.sirqCumulativeCriticalArrivals++;
     } else if (rand < pCrit + pStd) {
         type = AgentType.STANDARD;
     } else {
         type = AgentType.ECONOMY;
     }
 
-    const profile = TRUCK_PROFILES[type];
+    const profile = this.config.profiles[type];
     const vot = Math.floor(
-        Math.random() * (profile.votRange[1] - profile.votRange[0]) + profile.votRange[0]
+        Math.random() * (profile.maxVot - profile.minVot) + profile.minVot
     );
+
+    // Thesis Chapter 3.5: Reservations allow route planning guarantees.
+    // We simulate that ~15% of arriving trucks pre-booked their spot.
+    const hasReservation = Math.random() < 0.15; 
 
     return {
       id: generateId(),
@@ -94,7 +135,8 @@ export class SimulationEngine {
       patience: profile.patience,
       maxPriceTolerance: profile.maxPriceTolerance,
       status: 'queueing',
-      energyDelivered: 0
+      energyDelivered: 0,
+      hasReservation
     };
   }
 
@@ -103,10 +145,23 @@ export class SimulationEngine {
       if (state.recentLogs.length > 6) state.recentLogs.pop();
   }
 
-  private updatePrice(state: StationState) {
+  private calculateGiniCoefficient(values: number[]): number {
+      if (values.length === 0) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const n = sorted.length;
+      let numerator = 0;
+      for (let i = 0; i < n; i++) {
+          numerator += (i + 1) * sorted[i];
+      }
+      const denominator = n * sorted.reduce((a, b) => a + b, 0);
+      if (denominator === 0) return 0;
+      return (2 * numerator) / denominator - (n + 1) / n;
+  }
+
+  private updatePrice(state: StationState): number {
     if (!this.config.smartPricing) {
       state.currentPrice = this.config.baseGridPrice;
-      return;
+      return 1.0;
     }
     
     const busyChargers = state.chargers.filter(c => c.status === 'busy').length;
@@ -118,6 +173,8 @@ export class SimulationEngine {
     
     if (price > this.config.maxPriceCap) price = this.config.maxPriceCap;
     state.currentPrice = parseFloat(price.toFixed(2));
+    
+    return surgeMultiplier;
   }
 
   private calculateBid(agent: Agent, currentPricePerKwh: number, queueLength: number): number {
@@ -142,22 +199,13 @@ export class SimulationEngine {
       }
   }
 
-  // New Physics: Calculate Charge Speed based on SoC (State of Charge)
   private getChargeRate(currentEnergy: number, capacity: number, maxPower: number): number {
       const soc = currentEnergy / capacity;
-      
-      // Fast charging curve logic:
-      // 0% - 80%: Full speed (1.0 factor)
-      // 80% - 100%: Linear decay to 10% speed
-      
       if (soc < 0.8) {
           return maxPower; 
       } else {
-          // Slope from 1.0 down to 0.1 over the range 0.8 to 1.0
-          // formula: rate = 1.0 - ((soc - 0.8) / 0.2) * 0.9
-          const decay = ((soc - 0.8) / 0.2) * 0.9;
-          const factor = 1.0 - decay;
-          // Ensure we don't stall completely, min 5kW
+          const saturationProgress = (soc - 0.8) / 0.2; 
+          const factor = Math.pow(1.0 - saturationProgress, 2);
           return Math.max(maxPower * factor, 5.0);
       }
   }
@@ -171,9 +219,16 @@ export class SimulationEngine {
     // 2. Handle New Arrival
     if (newAgent) {
       const agent = { ...newAgent };
-      if (state.currentPrice > agent.maxPriceTolerance) {
+      if (state.currentPrice > agent.maxPriceTolerance && !agent.hasReservation) {
         state.balkedCount++;
-        if (state.strategy === 'SIRQ') { // Log mostly in SIRQ to reduce noise, or both
+        
+        // Count failure based on strategy
+        if (agent.type === AgentType.CRITICAL) {
+             if (state.strategy === 'FIFO') this.fifoCumulativeCriticalFailures++;
+             else this.sirqCumulativeCriticalFailures++;
+        }
+
+        if (state.strategy === 'SIRQ') { 
              this.addLog(state, `${agent.type} agent balked (Price $${state.currentPrice.toFixed(2)} > Tolerance)`);
         }
       } else {
@@ -181,15 +236,21 @@ export class SimulationEngine {
             agent.bid = this.calculateBid(agent, state.currentPrice, state.queue.length);
         }
         state.queue.push(agent);
-        // this.addLog(state, `${agent.type} joined queue.`);
       }
     }
 
     // 3. Queue Management
     state.queue = state.queue.filter(a => {
         const waited = this.tickCount - a.arrivalTime;
-        if (waited > a.patience) {
+        if (waited > a.patience && !a.hasReservation) {
             state.balkedCount++;
+            
+            // Count failure based on strategy
+            if (a.type === AgentType.CRITICAL) {
+                if (state.strategy === 'FIFO') this.fifoCumulativeCriticalFailures++;
+                else this.sirqCumulativeCriticalFailures++;
+            }
+
             this.addLog(state, `${a.type} agent left queue (Impatient)`);
             return false;
         }
@@ -198,40 +259,54 @@ export class SimulationEngine {
 
     if (state.strategy === 'SIRQ') {
         state.queue.sort((a, b) => {
+            // Priority 1: Reservations
+            if (a.hasReservation && !b.hasReservation) return -1;
+            if (!a.hasReservation && b.hasReservation) return 1;
+            // Priority 2: Highest Bid
             if (b.bid !== a.bid) return b.bid - a.bid;
+            // Priority 3: Arrival Time
             return a.arrivalTime - b.arrivalTime;
         });
     } else {
         state.queue.sort((a, b) => a.arrivalTime - b.arrivalTime);
     }
 
-    // 4. Charger Logic (Preemption & Charging)
-
-    // PREEMPTION
+    // 4. Charger Logic
     if (state.strategy === 'SIRQ' && state.queue.length > 0) {
         const topCandidate = state.queue[0];
         let lowestBidCharger: Charger | null = null;
         let minBid = Infinity;
+        let hasFreeSpot = false;
 
         state.chargers.forEach(c => {
-            if (c.status === 'busy' && c.currentAgent) {
-                if (c.currentAgent.bid < minBid) {
-                    minBid = c.currentAgent.bid;
-                    lowestBidCharger = c;
+            if (c.status === 'idle') {
+                hasFreeSpot = true;
+            } else if (c.status === 'busy' && c.currentAgent) {
+                if (!c.currentAgent.hasReservation) {
+                    if (c.currentAgent.bid < minBid) {
+                        minBid = c.currentAgent.bid;
+                        lowestBidCharger = c;
+                    }
                 }
-            } else if (c.status === 'idle') {
-                minBid = -1; 
             }
         });
 
-        if (minBid !== -1 && lowestBidCharger && lowestBidCharger.currentAgent) {
-            if (topCandidate.bid > minBid * this.config.preemptionPremium) {
+        if (!hasFreeSpot && lowestBidCharger && lowestBidCharger.currentAgent) {
+            let shouldSwap = false;
+            
+            if (topCandidate.hasReservation) {
+                shouldSwap = true;
+                this.addLog(state, `RESERVATION: ${topCandidate.type} claimed spot from ${lowestBidCharger.currentAgent.type}`);
+            } 
+            else if (topCandidate.bid > minBid * this.config.preemptionPremium) {
+                shouldSwap = true;
+                this.addLog(state, `AUCTION WON: ${topCandidate.type} ($${topCandidate.bid.toFixed(0)}) bought spot from ${lowestBidCharger.currentAgent.type}`);
+                this.cumulativePreemptions++;
+            }
+
+            if (shouldSwap) {
                 const evictedAgent = lowestBidCharger.currentAgent;
                 evictedAgent.status = 'preempted';
-                
-                // Explainability Log
-                this.addLog(state, `PREEMPTION: ${topCandidate.type} ($${topCandidate.bid.toFixed(0)}) displaced ${evictedAgent.type} ($${minBid.toFixed(0)})`);
-
                 state.queue.push(evictedAgent); 
                 state.queue.shift(); 
                 lowestBidCharger.currentAgent = topCandidate;
@@ -245,7 +320,6 @@ export class SimulationEngine {
     state.chargers.forEach(charger => {
       if (charger.status === 'busy' && charger.currentAgent) {
          
-         // Non-Linear Charging Physics
          const currentRateKw = this.getChargeRate(
              charger.currentAgent.energyDelivered, 
              this.config.batteryCapacity, 
@@ -255,7 +329,6 @@ export class SimulationEngine {
          const kwhPerTick = currentRateKw / 60;
          charger.currentAgent.energyDelivered += kwhPerTick;
          
-         // Visual estimation of time remaining (for UI only, not strict logic control)
          const remainingKwh = this.config.batteryCapacity - charger.currentAgent.energyDelivered;
          charger.timeRemaining = (remainingKwh / kwhPerTick);
 
@@ -268,7 +341,12 @@ export class SimulationEngine {
 
                if (state.strategy === 'SIRQ') {
                    revenue = charger.currentAgent.bid;
-                   pricePaid = revenue / this.config.batteryCapacity; // Effective rate
+                   pricePaid = revenue / this.config.batteryCapacity;
+                   
+                   const baseCost = (this.config.baseGridPrice * this.config.batteryCapacity) + this.config.baseServiceFee;
+                   const surplus = Math.max(0, revenue - baseCost);
+                   this.cumulativeSirqSurplus += surplus;
+
                } else {
                    revenue = (state.currentPrice * this.config.batteryCapacity) + this.config.baseServiceFee;
                    pricePaid = state.currentPrice;
@@ -277,16 +355,11 @@ export class SimulationEngine {
 
                const waitTime = (charger.currentAgent.enteredChargingAt || this.tickCount) - charger.currentAgent.arrivalTime;
                
-               // Global average
                state.avgWaitTime = ((state.avgWaitTime * (state.processedCount - 1)) + waitTime) / state.processedCount;
-               
-               // Profile specific average
+               this.allWaitTimes.push(waitTime);
+
                this.updateProfileStats(state, charger.currentAgent.type, waitTime);
 
-               // Log Completion
-               // this.addLog(state, `Completed ${charger.currentAgent.type} charge.`);
-
-               // Add to micro data
                microUpdates.push({
                    tick: this.tickCount,
                    strategy: state.strategy,
@@ -325,6 +398,22 @@ export class SimulationEngine {
 
     const fifoMicro = this.processStation(this.fifoState, newAgent);
     const sirqMicro = this.processStation(this.sirqState, newAgent);
+    
+    // Utilization (SIRQ)
+    const busyChargers = this.sirqState.chargers.filter(c => c.status === 'busy').length;
+    const utilization = busyChargers / this.sirqState.chargers.length;
+    
+    const queueFactor = Math.min(this.sirqState.queue.length / (this.sirqState.chargers.length * 2), 1.0);
+    const surgeMultiplier = 1 + (utilization * this.config.surgeSensitivity) + (queueFactor * this.config.surgeSensitivity);
+
+    // Calculate rates separated
+    const fifoFailureRate = this.fifoCumulativeCriticalArrivals > 0 
+        ? (this.fifoCumulativeCriticalFailures / this.fifoCumulativeCriticalArrivals) 
+        : 0;
+    
+    const sirqFailureRate = this.sirqCumulativeCriticalArrivals > 0
+        ? (this.sirqCumulativeCriticalFailures / this.sirqCumulativeCriticalArrivals)
+        : 0;
 
     return {
         fifo: this.fifoState,
@@ -340,10 +429,21 @@ export class SimulationEngine {
             fifoWaitCritical: this.fifoState.avgWaitTimeCritical,
             sirqWaitCritical: this.sirqState.avgWaitTimeCritical,
             
+            // New Split Metrics
+            fifoFailureRate,
+            sirqFailureRate,
+            
             fifoWaitEconomy: this.fifoState.avgWaitTimeEconomy,
             sirqWaitEconomy: this.sirqState.avgWaitTimeEconomy,
             
-            price: this.fifoState.currentPrice
+            price: this.fifoState.currentPrice,
+            utilization: utilization,
+            queueLength: this.sirqState.queue.length,
+            surgeMultiplier: surgeMultiplier,
+            
+            giniCoefficient: this.calculateGiniCoefficient(this.allWaitTimes),
+            subsidyPool: this.cumulativeSirqSurplus,
+            preemptions: this.cumulativePreemptions
         }
     };
   }

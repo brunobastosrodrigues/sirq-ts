@@ -1,5 +1,4 @@
-# SIRQ Simulator
-**System for Interactive Reservation and Queueing**
+# SIRQ: System for Interactive Reservation and Queueing
 
 Same idea of the Python-based repo https://github.com/brunobastosrodrigues/sirq-simulator, but "interpreted" by Google AI.
 

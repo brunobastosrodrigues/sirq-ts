@@ -118,6 +118,32 @@ export const ModelDocs: React.FC<ModelDocsProps> = ({ onClose }) => {
             </div>
           </section>
 
+          {/* Section 5: Technical Feasibility */}
+          <section className="bg-slate-900 text-slate-200 p-8 rounded-xl">
+            <div className="flex items-center gap-4 mb-6">
+                <span className="text-3xl font-serif text-indigo-400 font-bold">05</span>
+                <h3 className="text-xl font-bold text-white">Technical Feasibility & Implementation</h3>
+            </div>
+            <p className="mb-6 leading-relaxed text-slate-300">
+              This simulation is not merely theoretical; it is designed to be implementable today using existing industry standards. The logic provides the decision layer, while standard protocols handle the execution.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                    <h4 className="font-bold text-indigo-400 mb-2">OCPP 2.0.1</h4>
+                    <p className="text-sm text-slate-400">
+                        The Open Charge Point Protocol (OCPP) version 2.0.1 natively supports <strong>dynamic tariffs</strong> and display messages. SIRQ uses this to push real-time auction prices to the charging terminal.
+                    </p>
+                </div>
+                <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                    <h4 className="font-bold text-indigo-400 mb-2">ISO 15118</h4>
+                    <p className="text-sm text-slate-400">
+                        "Plug & Charge" standard. It allows the vehicle to automatically identify itself (Agent ID) and settle payments (Bids) without manual driver interaction, enabling the seamless preemption logic.
+                    </p>
+                </div>
+            </div>
+          </section>
+
         </div>
         
         <div className="bg-slate-50 p-8 border-t border-slate-200 text-center">

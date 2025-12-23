@@ -5,7 +5,7 @@ import { SimulationCanvas } from './components/SimulationCanvas';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { LandingPage } from './components/LandingPage';
 import { ModelDocs } from './components/ModelDocs';
-import { SimulationConfig, StationState, HistoricalDataPoint, MicroDataPoint } from './types';
+import { SimulationConfig, StationState, HistoricalDataPoint, MicroDataPoint, AgentType, SimulationSnapshot } from './types';
 import { clsx } from 'clsx';
 
 const DEFAULT_CONFIG: SimulationConfig = {
@@ -29,6 +29,19 @@ const DEFAULT_CONFIG: SimulationConfig = {
   numChargers: 4,
   arrivalRate: 0.10, // ~1 truck every 10 ticks
   simulationSpeed: 100,
+  
+  // Profiles (Editable)
+  profiles: {
+    [AgentType.CRITICAL]: {
+        minVot: 150.0, maxVot: 300.0, patience: 240, priceSensitivity: 0.1, maxPriceTolerance: 5.00
+    },
+    [AgentType.STANDARD]: {
+        minVot: 50.0, maxVot: 80.0, patience: 120, priceSensitivity: 0.5, maxPriceTolerance: 1.50
+    },
+    [AgentType.ECONOMY]: {
+        minVot: 15.0, maxVot: 30.0, patience: 45, priceSensitivity: 0.9, maxPriceTolerance: 0.80
+    }
+  }
 };
 
 export default function App() {
@@ -49,6 +62,9 @@ export default function App() {
   const requestRef = useRef<number | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runningRef = useRef(isRunning);
+  // Import flag to prevent auto-reset
+  const isImportingRef = useRef(false);
+  const pendingSnapshotRef = useRef<SimulationSnapshot | null>(null);
 
   // File Input Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -62,10 +78,23 @@ export default function App() {
     setMicroHistory([]);
   }, [config]);
 
-  // Initial setup
+  // Initial setup & Config change handler
   useEffect(() => {
+    if (isImportingRef.current) {
+        isImportingRef.current = false;
+        engineRef.current = new SimulationEngine(config);
+        
+        // Restore state if we have a pending snapshot from import
+        if (pendingSnapshotRef.current) {
+             engineRef.current.restoreSnapshot(pendingSnapshotRef.current);
+             setFifoState(engineRef.current.fifoState);
+             setSirqState(engineRef.current.sirqState);
+             pendingSnapshotRef.current = null;
+        }
+        return;
+    }
     initSimulation();
-  }, [initSimulation]);
+  }, [config, initSimulation]);
 
   const tick = useCallback(() => {
     if (!engineRef.current || !runningRef.current) return;
@@ -130,7 +159,9 @@ export default function App() {
         },
         config: config,
         history: history,
-        microHistory: microHistory
+        microHistory: microHistory,
+        // Save state snapshot for resuming
+        snapshot: engineRef.current ? engineRef.current.getSnapshot() : null
     };
 
     const blob = new Blob([JSON.stringify(dataset, null, 2)], { type: "application/json" });
@@ -160,8 +191,19 @@ export default function App() {
               // Basic Validation
               if (json.config && Array.isArray(json.history)) {
                   setIsRunning(false);
+                  
+                  // Store snapshot for the useEffect to pick up
+                  if (json.snapshot) {
+                    pendingSnapshotRef.current = json.snapshot;
+                  }
+
+                  // CRITICAL: Set flag to prevent useEffect from wiping history when config updates
+                  isImportingRef.current = true;
+                  
+                  // Batch updates
                   setConfig(json.config);
                   setHistory(json.history);
+                  // Ensure microHistory is set, defaulting to empty if not present in older datasets
                   setMicroHistory(json.microHistory || []);
                   
                   setImportStatus("Import Successful!");
@@ -204,14 +246,14 @@ export default function App() {
             <Zap size={20} fill="currentColor" />
           </div>
           <div>
-            <h1 className="font-bold text-xl tracking-tight text-slate-900">SIRQ <span className="font-light text-slate-500">Simulator</span></h1>
-            <p className="text-[10px] text-slate-500 font-medium">Research Build v1.0.6 (Scientific Analytics)</p>
+            <h1 className="font-bold text-lg tracking-tight text-slate-900">SIRQ</h1>
+            <p className="text-[10px] text-slate-500 font-medium">Research Build v1.0.7</p>
           </div>
         </div>
 
         <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
           {[
-            { id: 'twin', label: 'Digital Twin', icon: LayoutDashboard },
+            { id: 'twin', label: 'Simulation', icon: LayoutDashboard },
             { id: 'analytics', label: 'Analytics (RQs)', icon: BarChart3 },
             { id: 'lab', label: 'Lab Config', icon: Settings },
           ].map((tab) => (
@@ -272,27 +314,27 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden relative">
         
-        {/* Controls Overlay (Only visible in Twin Mode) */}
+        {/* Controls Overlay (Only visible in Simulation Mode) */}
         {activeTab === 'twin' && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-sm border border-slate-200 shadow-lg rounded-full px-4 py-2 flex items-center gap-4">
-                <div className="flex items-center gap-2">
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-sm border border-slate-200 shadow-xl rounded-full px-5 py-3 flex items-center gap-5">
+                <div className="flex items-center gap-3">
                 <button 
                     onClick={() => setIsRunning(!isRunning)}
                     className={clsx(
-                        "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                        "w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md",
                         isRunning ? "bg-amber-100 text-amber-600 hover:bg-amber-200" : "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
                     )}
                 >
-                    {isRunning ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
+                    {isRunning ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-1" />}
                 </button>
-                <button onClick={handleReset} className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">
-                    <RotateCcw size={18} />
+                <button onClick={handleReset} className="w-12 h-12 rounded-full flex items-center justify-center bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all shadow-sm">
+                    <RotateCcw size={20} />
                 </button>
                 </div>
-                <div className="w-px h-6 bg-slate-300 mx-2" />
-                <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
-                    <span className="tabular-nums">Tick: {engineRef.current?.tickCount || 0}</span>
-                    <span className="tabular-nums">Sim Time: {(engineRef.current?.tickCount || 0 / 60).toFixed(1)}h</span>
+                <div className="w-px h-8 bg-slate-300 mx-1" />
+                <div className="flex flex-col text-xs font-medium text-slate-600 min-w-[100px]">
+                    <span className="tabular-nums text-sm text-slate-900 font-bold">Tick: {engineRef.current?.tickCount || 0}</span>
+                    <span className="tabular-nums text-slate-500">Sim Time: {((engineRef.current?.tickCount || 0) / 60).toFixed(1)}h</span>
                 </div>
             </div>
         )}
@@ -300,11 +342,11 @@ export default function App() {
         {/* Tab Content */}
         <div className="h-full w-full p-6">
             
-            {/* DIGITAL TWIN TAB */}
+            {/* DIGITAL TWIN / SIMULATION TAB */}
             {activeTab === 'twin' && fifoState && sirqState && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full pb-10">
-                  <SimulationCanvas title="Control Group (FIFO)" state={fifoState} />
-                  <SimulationCanvas title="Experimental (SIRQ)" state={sirqState} />
+                  <SimulationCanvas title="Control Group (FIFO)" state={fifoState} config={config} />
+                  <SimulationCanvas title="Experimental (SIRQ)" state={sirqState} config={config} />
               </div>
             )}
 
@@ -336,6 +378,27 @@ export default function App() {
                                 />
                                 <div className="text-right text-xs text-indigo-600 font-bold mt-1">{config.numChargers} Units</div>
                             </div>
+                            
+                            {/* Charger Specs */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Charger Power (kW)</label>
+                                <input 
+                                    type="number" 
+                                    value={config.chargerPower}
+                                    onChange={(e) => setConfig({...config, chargerPower: parseFloat(e.target.value)})}
+                                    className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Battery Capacity (kWh)</label>
+                                <input 
+                                    type="number" 
+                                    value={config.batteryCapacity}
+                                    onChange={(e) => setConfig({...config, batteryCapacity: parseFloat(e.target.value)})}
+                                    className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                                />
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">Traffic (Arrival Rate)</label>
                                 <input 
@@ -381,21 +444,56 @@ export default function App() {
                          </div>
                      </div>
 
+                     {/* Profile Config */}
                      <div className="mt-8 pt-6 border-t border-slate-100">
-                         <h3 className="font-semibold text-slate-500 uppercase text-xs tracking-wider mb-4">Traffic Mix Proportions</h3>
-                         <div className="flex gap-4">
-                             <div className="flex-1 p-3 rounded bg-red-50 border border-red-100 text-center">
-                                 <div className="text-xs text-red-500 font-bold mb-1">Critical (High VOT)</div>
-                                 <div className="text-xl font-bold text-red-700">{(config.probCritical * 100).toFixed(0)}%</div>
-                             </div>
-                             <div className="flex-1 p-3 rounded bg-blue-50 border border-blue-100 text-center">
-                                 <div className="text-xs text-blue-500 font-bold mb-1">Standard</div>
-                                 <div className="text-xl font-bold text-blue-700">{(config.probStandard * 100).toFixed(0)}%</div>
-                             </div>
-                             <div className="flex-1 p-3 rounded bg-slate-50 border border-slate-200 text-center">
-                                 <div className="text-xs text-slate-500 font-bold mb-1">Economy</div>
-                                 <div className="text-xl font-bold text-slate-700">{(config.probEconomy * 100).toFixed(0)}%</div>
-                             </div>
+                         <h3 className="font-semibold text-slate-500 uppercase text-xs tracking-wider mb-4">Agent Profiles (Value of Time)</h3>
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             {[AgentType.CRITICAL, AgentType.STANDARD, AgentType.ECONOMY].map(type => (
+                                 <div key={type} className={clsx("p-4 rounded border text-center", 
+                                    type === AgentType.CRITICAL ? "bg-red-50 border-red-100" : 
+                                    type === AgentType.STANDARD ? "bg-blue-50 border-blue-100" : 
+                                    "bg-slate-50 border-slate-200")}>
+                                     <h4 className="font-bold text-xs uppercase mb-3">{type}</h4>
+                                     <div className="space-y-2 text-left">
+                                         <div>
+                                             <label className="text-[10px] text-slate-500">Min VOT ($/hr)</label>
+                                             <input type="number" 
+                                                value={config.profiles[type].minVot}
+                                                onChange={(e) => {
+                                                    const newProfiles = {...config.profiles};
+                                                    newProfiles[type].minVot = parseFloat(e.target.value);
+                                                    setConfig({...config, profiles: newProfiles});
+                                                }}
+                                                className="w-full text-xs border rounded p-1"
+                                             />
+                                         </div>
+                                         <div>
+                                             <label className="text-[10px] text-slate-500">Max VOT ($/hr)</label>
+                                             <input type="number" 
+                                                value={config.profiles[type].maxVot}
+                                                onChange={(e) => {
+                                                    const newProfiles = {...config.profiles};
+                                                    newProfiles[type].maxVot = parseFloat(e.target.value);
+                                                    setConfig({...config, profiles: newProfiles});
+                                                }}
+                                                className="w-full text-xs border rounded p-1"
+                                             />
+                                         </div>
+                                         <div>
+                                             <label className="text-[10px] text-slate-500">Patience (min)</label>
+                                             <input type="number" 
+                                                value={config.profiles[type].patience}
+                                                onChange={(e) => {
+                                                    const newProfiles = {...config.profiles};
+                                                    newProfiles[type].patience = parseFloat(e.target.value);
+                                                    setConfig({...config, profiles: newProfiles});
+                                                }}
+                                                className="w-full text-xs border rounded p-1"
+                                             />
+                                         </div>
+                                     </div>
+                                 </div>
+                             ))}
                          </div>
                      </div>
 

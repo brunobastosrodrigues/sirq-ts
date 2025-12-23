@@ -5,6 +5,14 @@ export enum AgentType {
   ECONOMY = 'ECONOMY',   // Bulk / Owner-Operator
 }
 
+export interface AgentProfile {
+  minVot: number;
+  maxVot: number;
+  patience: number;
+  priceSensitivity: number;
+  maxPriceTolerance: number;
+}
+
 export interface Agent {
   id: string;
   type: AgentType;
@@ -16,6 +24,7 @@ export interface Agent {
   status: 'queueing' | 'charging' | 'balked' | 'completed' | 'preempted';
   enteredChargingAt?: number;
   energyDelivered: number; // kWh
+  hasReservation: boolean; // Thesis Ch 3.5: Route planning guarantee
 }
 
 export interface Charger {
@@ -67,6 +76,9 @@ export interface SimulationConfig {
   probStandard: number;
   probEconomy: number;
   
+  // Profiles (Editable)
+  profiles: Record<AgentType, AgentProfile>;
+
   // Simulation
   numChargers: number;
   arrivalRate: number; // Prob per tick
@@ -75,19 +87,33 @@ export interface SimulationConfig {
 
 export interface HistoricalDataPoint {
   tick: number;
-  // RQ1 Efficiency
+  // Efficiency
   fifoRevenue: number;
   sirqRevenue: number;
   fifoBalked: number;
   sirqBalked: number;
-  // RQ2 Reliability
+  
+  // Reliability
   fifoWaitCritical: number;
   sirqWaitCritical: number;
-  // RQ3 Pricing
+  
+  // Split Failure Rates for Comparison
+  fifoFailureRate: number; 
+  sirqFailureRate: number;
+
+  preemptions: number; // Count of auction swaps
+  
+  // Pricing & Sensitivity
   price: number;
-  // RQ4 Equity
+  utilization: number; // 0.0 to 1.0
+  queueLength: number;
+  surgeMultiplier: number; 
+  
+  // Equity
   fifoWaitEconomy: number;
   sirqWaitEconomy: number;
+  giniCoefficient: number; // 0.0 to 1.0 (Wait time inequality)
+  subsidyPool: number; // $ Accumulated surplus from auctions
 }
 
 export interface MicroDataPoint {
@@ -98,4 +124,18 @@ export interface MicroDataPoint {
   bid: number;
   waitTime: number;
   pricePaid: number; // $/kWh effective
+}
+
+export interface SimulationSnapshot {
+  tickCount: number;
+  fifoState: StationState;
+  sirqState: StationState;
+  // Separate counters for proper resumption
+  fifoCumulativeCriticalArrivals: number;
+  fifoCumulativeCriticalFailures: number;
+  sirqCumulativeCriticalArrivals: number;
+  sirqCumulativeCriticalFailures: number;
+  cumulativeSirqSurplus: number;
+  cumulativePreemptions: number;
+  allWaitTimes: number[];
 }

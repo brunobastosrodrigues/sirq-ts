@@ -1,5 +1,5 @@
 {
-  "name": "sirq-simulator",
+  "name": "sirq:-system-for-interactive-reservation-and-queueing",
   "private": true,
   "version": "0.0.0",
   "type": "module",

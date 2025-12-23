@@ -1,11 +1,12 @@
-import React from 'react';
-import { Agent, AgentType, StationState } from '../types';
-import { BatteryCharging, Truck, DollarSign, Clock, AlertTriangle, Info, List } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Agent, AgentType, StationState, SimulationConfig } from '../types';
+import { BatteryCharging, Truck, DollarSign, Clock, AlertTriangle, Info, List, CalendarCheck } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface SimulationCanvasProps {
   title: string;
   state: StationState;
+  config: SimulationConfig;
 }
 
 const AgentCard: React.FC<{ agent: Agent; isQueue?: boolean }> = ({ agent, isQueue }) => {
@@ -37,9 +38,16 @@ const AgentCard: React.FC<{ agent: Agent; isQueue?: boolean }> = ({ agent, isQue
     >
       <div className="flex items-center gap-2">
         <Truck size={16} style={{ color: style.backgroundColor }} />
-        <span className="font-bold" style={{ color: style.borderColor }}>
-            {agent.type === AgentType.STANDARD ? 'STD' : agent.type.substring(0, 4)}
-        </span>
+        <div className="flex flex-col items-start">
+            <span className="font-bold leading-none" style={{ color: style.borderColor }}>
+                {agent.type === AgentType.STANDARD ? 'STD' : agent.type.substring(0, 4)}
+            </span>
+            {agent.hasReservation && (
+                <span className="text-[9px] flex items-center gap-0.5 text-indigo-700 font-bold bg-indigo-100 px-1 rounded mt-0.5">
+                    <CalendarCheck size={8} /> RSV
+                </span>
+            )}
+        </div>
       </div>
       
       <div className={clsx("flex", isQueue ? "items-center gap-4" : "flex-col mt-1")}>
@@ -51,7 +59,7 @@ const AgentCard: React.FC<{ agent: Agent; isQueue?: boolean }> = ({ agent, isQue
          <div className="text-[10px] opacity-75">
             <span className="font-mono">VOT:{agent.vot}</span>
          </div>
-         {agent.bid > 0 && (
+         {agent.bid > 0 && !agent.hasReservation && (
              <div className="font-bold text-slate-800 bg-white/50 px-1 rounded">
                  ${agent.bid.toFixed(0)}
              </div>
@@ -61,9 +69,7 @@ const AgentCard: React.FC<{ agent: Agent; isQueue?: boolean }> = ({ agent, isQue
   );
 };
 
-export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ title, state }) => {
-  const chargeDuration = 200; // Hardcoded tick duration for visual bar
-
+export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ title, state, config }) => {
   return (
     <div className="flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden h-full">
       {/* Header */}
@@ -93,24 +99,24 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ title, state
         {/* Main Simulation View */}
         <div className="flex-1 flex p-4 gap-4 bg-slate-50/50 overflow-hidden">
             {/* Queue Lane */}
-            <div className="w-1/3 flex flex-col">
-            <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2 flex justify-between">
-                <span>Queue ({state.queue.length})</span>
-                {state.strategy === 'SIRQ' && <span className="text-indigo-600 text-[10px]">Highest Bid First</span>}
-            </h4>
-            <div className="flex-1 overflow-y-auto pr-2 space-y-2 border-r border-slate-200 border-dashed">
-                {state.queue.length === 0 && (
-                    <div className="text-center text-slate-400 py-10 text-xs italic">Lane Empty</div>
-                )}
-                {state.queue.map((agent) => (
-                    <AgentCard key={agent.id} agent={agent} isQueue />
-                ))}
-            </div>
+            <div className="w-1/3 flex flex-col relative">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2 flex justify-between items-center">
+                    <span>Queue ({state.queue.length})</span>
+                    {state.strategy === 'SIRQ' && <span className="text-indigo-600 text-[10px]">Highest Bid First</span>}
+                </h4>
+                <div className="flex-1 overflow-y-auto pr-2 pb-32 space-y-2 border-r border-slate-200 border-dashed">
+                    {state.queue.length === 0 && (
+                        <div className="text-center text-slate-400 py-10 text-xs italic">Lane Empty</div>
+                    )}
+                    {state.queue.map((agent) => (
+                        <AgentCard key={agent.id} agent={agent} isQueue />
+                    ))}
+                </div>
             </div>
 
             {/* Chargers Grid */}
             <div className="w-2/3 flex flex-col">
-            <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Charging Bays (150kW)</h4>
+            <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Charging Bays ({config.chargerPower}kW)</h4>
             <div className="grid grid-cols-2 gap-3 auto-rows-min">
                 {state.chargers.map((charger) => (
                 <div key={charger.id} className={clsx(
@@ -123,7 +129,7 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ title, state
                         <div className="h-full w-1.5 bg-slate-200 rounded-full overflow-hidden flex flex-col justify-end">
                             <div 
                             className="w-full bg-green-500 transition-all duration-300"
-                            style={{ height: `${((chargeDuration - charger.timeRemaining) / chargeDuration) * 100}%` }}
+                            style={{ height: `${(charger.currentAgent.energyDelivered / config.batteryCapacity) * 100}%` }}
                             />
                         </div>
                     </div>
@@ -152,21 +158,28 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ title, state
                         <div className="w-2 h-2 rounded-full bg-[#ff4b4b]"></div>
                         <div className="leading-none">
                             <span className="block font-medium">Critical</span>
-                            <span className="text-[9px] text-slate-400">High VOT ($150+)</span>
+                            <span className="text-[9px] text-slate-400">High VOT</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-[#3498db]"></div>
                         <div className="leading-none">
                             <span className="block font-medium">Standard</span>
-                            <span className="text-[9px] text-slate-400">Med VOT (~$50)</span>
+                            <span className="text-[9px] text-slate-400">Med VOT</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-[#95a5a6]"></div>
                         <div className="leading-none">
                             <span className="block font-medium">Economy</span>
-                            <span className="text-[9px] text-slate-400">Low VOT (~$20)</span>
+                            <span className="text-[9px] text-slate-400">Low VOT</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                        <div className="text-indigo-600"><CalendarCheck size={14}/></div>
+                        <div className="leading-none">
+                            <span className="block font-medium">Reservation</span>
+                            <span className="text-[9px] text-slate-400">Guaranteed</span>
                         </div>
                     </div>
                 </div>
@@ -177,7 +190,7 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ title, state
                 <h5 className="font-bold text-slate-700 flex items-center gap-1 p-3 pb-2 border-b border-slate-100 bg-white">
                     <List size={12} /> Live Events
                 </h5>
-                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                <div className="flex-1 overflow-y-auto p-2 pb-32 space-y-2">
                     {state.recentLogs.length === 0 && (
                         <p className="text-center text-slate-400 italic mt-4">No major events...</p>
                     )}
