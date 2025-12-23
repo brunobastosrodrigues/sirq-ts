@@ -13,20 +13,26 @@ The easiest way to run SIRQ is using Docker. This method automatically handles a
 
 ### Instructions
 
-1. **Start the Application**
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/brunobastosrodrigues/sirq-ts.git
+   cd sirq-ts
+   ```
+
+2. **Start the Application**
    Run the following command in the project root:
    ```bash
    docker-compose up -d --build
    ```
    *Note: The `--build` flag ensures that the container installs all dependencies (`npm install`) and recompiles the application if you have made changes.*
 
-2. **Access the Dashboard**
+3. **Access the Dashboard**
    Open your browser and navigate to:
    ```
    http://localhost:8080
    ```
 
-3. **Stop the Application**
+4. **Stop the Application**
    ```bash
    docker-compose down
    ```
@@ -40,20 +46,27 @@ If you prefer running it without Docker (e.g., for development):
 ### Prerequisites
 - Node.js (v18 or higher)
 - npm or yarn
+- Git
 
 ### Installation
 
-1. **Install Dependencies**
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/brunobastosrodrigues/sirq-ts.git
+   cd sirq-ts
+   ```
+
+2. **Install Dependencies**
    ```bash
    npm install
    ```
 
-2. **Run Development Server**
+3. **Run Development Server**
    ```bash
    npm run dev
    ```
 
-3. **Open in Browser**
+4. **Open in Browser**
    Navigate to `http://localhost:5173`.
 
 ---
