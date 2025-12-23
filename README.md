@@ -8,34 +8,61 @@ This project simulates rational economic agents with heterogeneous Value of Time
 
 The easiest way to run SIRQ is using Docker. This method automatically handles all dependency installations and builds a production-ready container.
 
-### Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+> Quick note: the provided `docker-compose.yml` maps container port `80` to host port `8080` (so the app will be available at `http://localhost:8080`).
 
-### Instructions
+### Using docker-compose (recommended)
 
-1. **Clone the Repository**
+1. **Clone the repository**
    ```bash
    git clone https://github.com/brunobastosrodrigues/sirq-ts.git
    cd sirq-ts
    ```
 
-2. **Start the Application**
-   Run the following command in the project root:
+2. **Build & start the service (detached)**
    ```bash
    docker-compose up -d --build
    ```
-   *Note: The `--build` flag ensures that the container installs all dependencies (`npm install`) and recompiles the application if you have made changes.*
 
-3. **Access the Dashboard**
-   Open your browser and navigate to:
-   ```
-   http://localhost:8080
+3. **View logs**
+   ```bash
+   docker-compose logs -f sirq-app
    ```
 
-4. **Stop the Application**
+4. **Stop and remove containers**
    ```bash
    docker-compose down
    ```
+
+### Using Docker CLI (no docker-compose)
+
+1. **Build the image**
+   ```bash
+   docker build -t sirq-simulator:latest .
+   ```
+
+2. **Run the container (maps host 8080 → container 80)**
+   ```bash
+   docker run -d --name sirq_simulator -p 8080:80 sirq-simulator:latest
+   ```
+
+3. **View logs**
+   ```bash
+   docker logs -f sirq_simulator
+   ```
+
+4. **Stop & remove**
+   ```bash
+   docker stop sirq_simulator && docker rm sirq_simulator
+   ```
+
+### Troubleshooting & tips
+
+- If port 8080 is already in use, map to a different host port (for example `-p 8081:80`), or update `docker-compose.yml`.
+- To run without building (if no source changes were made since the last build) omit `--build`.
+- If you prefer the new Docker CLI syntax, `docker compose` (no hyphen) works the same as `docker-compose` on recent Docker versions.
+
+---
+
 
 ---
 
