@@ -1,4 +1,4 @@
-# SIRQ Simulator (Research Build)
+# SIRQ Simulator
 **System for Interactive Reservation and Queueing**
 
 A scientific simulation platform benchmarking Real-Time Auctions against FIFO (First-In, First-Out) mechanisms for electric truck charging infrastructure. This project simulates rational economic agents with heterogeneous Value of Time (VOT) to demonstrate allocative efficiency in constrained infrastructure.
