@@ -52,6 +52,7 @@ export class SimulationEngine {
       balkedCount: 0,
       revenue: 0,
       currentPrice: this.config.baseGridPrice,
+      recentLogs: [],
       avgWaitTime: 0,
       // Granular
       avgWaitTimeCritical: 0,
@@ -95,6 +96,11 @@ export class SimulationEngine {
       status: 'queueing',
       energyDelivered: 0
     };
+  }
+
+  private addLog(state: StationState, message: string) {
+      state.recentLogs.unshift(message);
+      if (state.recentLogs.length > 6) state.recentLogs.pop();
   }
 
   private updatePrice(state: StationState) {
@@ -167,12 +173,15 @@ export class SimulationEngine {
       const agent = { ...newAgent };
       if (state.currentPrice > agent.maxPriceTolerance) {
         state.balkedCount++;
-        // Record balking micro-data? Not for now, mainly completed ones for charts
+        if (state.strategy === 'SIRQ') { // Log mostly in SIRQ to reduce noise, or both
+             this.addLog(state, `${agent.type} agent balked (Price $${state.currentPrice.toFixed(2)} > Tolerance)`);
+        }
       } else {
         if (state.strategy === 'SIRQ') {
             agent.bid = this.calculateBid(agent, state.currentPrice, state.queue.length);
         }
         state.queue.push(agent);
+        // this.addLog(state, `${agent.type} joined queue.`);
       }
     }
 
@@ -181,6 +190,7 @@ export class SimulationEngine {
         const waited = this.tickCount - a.arrivalTime;
         if (waited > a.patience) {
             state.balkedCount++;
+            this.addLog(state, `${a.type} agent left queue (Impatient)`);
             return false;
         }
         return true;
@@ -196,7 +206,6 @@ export class SimulationEngine {
     }
 
     // 4. Charger Logic (Preemption & Charging)
-    // Removed fixed duration calculation, now dynamic based on SoC
 
     // PREEMPTION
     if (state.strategy === 'SIRQ' && state.queue.length > 0) {
@@ -219,12 +228,15 @@ export class SimulationEngine {
             if (topCandidate.bid > minBid * this.config.preemptionPremium) {
                 const evictedAgent = lowestBidCharger.currentAgent;
                 evictedAgent.status = 'preempted';
+                
+                // Explainability Log
+                this.addLog(state, `PREEMPTION: ${topCandidate.type} ($${topCandidate.bid.toFixed(0)}) displaced ${evictedAgent.type} ($${minBid.toFixed(0)})`);
+
                 state.queue.push(evictedAgent); 
                 state.queue.shift(); 
                 lowestBidCharger.currentAgent = topCandidate;
                 lowestBidCharger.currentAgent.status = 'charging';
                 lowestBidCharger.currentAgent.enteredChargingAt = this.tickCount;
-                // timeRemaining is now calculated dynamically
             }
         }
     }
@@ -244,7 +256,6 @@ export class SimulationEngine {
          charger.currentAgent.energyDelivered += kwhPerTick;
          
          // Visual estimation of time remaining (for UI only, not strict logic control)
-         // Estimate: Remaining kWh / Current Rate
          const remainingKwh = this.config.batteryCapacity - charger.currentAgent.energyDelivered;
          charger.timeRemaining = (remainingKwh / kwhPerTick);
 
@@ -272,6 +283,9 @@ export class SimulationEngine {
                // Profile specific average
                this.updateProfileStats(state, charger.currentAgent.type, waitTime);
 
+               // Log Completion
+               // this.addLog(state, `Completed ${charger.currentAgent.type} charge.`);
+
                // Add to micro data
                microUpdates.push({
                    tick: this.tickCount,
@@ -294,7 +308,6 @@ export class SimulationEngine {
             charger.currentAgent = nextAgent;
             charger.currentAgent.status = 'charging';
             charger.currentAgent.enteredChargingAt = this.tickCount;
-            // timeRemaining is dynamic now
         }
       }
     });

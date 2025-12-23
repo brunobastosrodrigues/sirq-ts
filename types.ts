@@ -1,3 +1,4 @@
+
 export enum AgentType {
   CRITICAL = 'CRITICAL', // JIT / Perishable
   STANDARD = 'STANDARD', // FMCG / Corp Fleet
@@ -32,6 +33,7 @@ export interface StationState {
   balkedCount: number;
   revenue: number;
   currentPrice: number; // $/kWh
+  recentLogs: string[]; // For Explainability: text log of events
   
   // Granular Stats for RQs
   avgWaitTime: number;

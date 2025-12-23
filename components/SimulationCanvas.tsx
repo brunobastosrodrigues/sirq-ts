@@ -1,6 +1,6 @@
 import React from 'react';
 import { Agent, AgentType, StationState } from '../types';
-import { BatteryCharging, Truck, DollarSign, Clock, AlertTriangle } from 'lucide-react';
+import { BatteryCharging, Truck, DollarSign, Clock, AlertTriangle, Info, List } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface SimulationCanvasProps {
@@ -62,7 +62,6 @@ const AgentCard: React.FC<{ agent: Agent; isQueue?: boolean }> = ({ agent, isQue
 };
 
 export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ title, state }) => {
-  // Calculate total capacity
   const chargeDuration = 200; // Hardcoded tick duration for visual bar
 
   return (
@@ -89,52 +88,106 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ title, state
       </div>
 
       {/* Main Visual Area */}
-      <div className="flex flex-1 p-4 gap-4 overflow-hidden bg-slate-50/50">
+      <div className="flex flex-1 overflow-hidden relative">
         
-        {/* Queue Lane */}
-        <div className="w-1/3 flex flex-col">
-           <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2 flex justify-between">
-             <span>Queue ({state.queue.length})</span>
-             {state.strategy === 'SIRQ' && <span className="text-indigo-600 text-[10px]">Highest Bid First</span>}
-           </h4>
-           <div className="flex-1 overflow-y-auto pr-2 space-y-2 border-r border-slate-200 border-dashed">
-             {state.queue.length === 0 && (
-                <div className="text-center text-slate-400 py-10 text-xs italic">Lane Empty</div>
-             )}
-             {state.queue.map((agent) => (
-                <AgentCard key={agent.id} agent={agent} isQueue />
-             ))}
-           </div>
+        {/* Main Simulation View */}
+        <div className="flex-1 flex p-4 gap-4 bg-slate-50/50 overflow-hidden">
+            {/* Queue Lane */}
+            <div className="w-1/3 flex flex-col">
+            <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2 flex justify-between">
+                <span>Queue ({state.queue.length})</span>
+                {state.strategy === 'SIRQ' && <span className="text-indigo-600 text-[10px]">Highest Bid First</span>}
+            </h4>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-2 border-r border-slate-200 border-dashed">
+                {state.queue.length === 0 && (
+                    <div className="text-center text-slate-400 py-10 text-xs italic">Lane Empty</div>
+                )}
+                {state.queue.map((agent) => (
+                    <AgentCard key={agent.id} agent={agent} isQueue />
+                ))}
+            </div>
+            </div>
+
+            {/* Chargers Grid */}
+            <div className="w-2/3 flex flex-col">
+            <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Charging Bays (150kW)</h4>
+            <div className="grid grid-cols-2 gap-3 auto-rows-min">
+                {state.chargers.map((charger) => (
+                <div key={charger.id} className={clsx(
+                    "h-24 rounded-lg border-2 flex items-center justify-center p-2 transition-colors duration-500",
+                    charger.status === 'busy' ? "border-green-500 bg-green-50" : "border-slate-200 bg-white"
+                )}>
+                    {charger.status === 'busy' && charger.currentAgent ? (
+                    <div className="w-full h-full flex items-center gap-3">
+                        <AgentCard agent={charger.currentAgent} />
+                        <div className="h-full w-1.5 bg-slate-200 rounded-full overflow-hidden flex flex-col justify-end">
+                            <div 
+                            className="w-full bg-green-500 transition-all duration-300"
+                            style={{ height: `${((chargeDuration - charger.timeRemaining) / chargeDuration) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                    ) : (
+                    <div className="text-slate-300 flex flex-col items-center">
+                        <BatteryCharging size={24} />
+                        <span className="text-xs mt-1">Idle</span>
+                    </div>
+                    )}
+                </div>
+                ))}
+            </div>
+            </div>
         </div>
 
-        {/* Chargers Grid */}
-        <div className="w-2/3 flex flex-col">
-          <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Charging Bays (150kW)</h4>
-          <div className="grid grid-cols-2 gap-3 auto-rows-min">
-            {state.chargers.map((charger) => (
-              <div key={charger.id} className={clsx(
-                "h-24 rounded-lg border-2 flex items-center justify-center p-2 transition-colors duration-500",
-                charger.status === 'busy' ? "border-green-500 bg-green-50" : "border-slate-200 bg-white"
-              )}>
-                {charger.status === 'busy' && charger.currentAgent ? (
-                  <div className="w-full h-full flex items-center gap-3">
-                     <AgentCard agent={charger.currentAgent} />
-                     <div className="h-full w-1.5 bg-slate-200 rounded-full overflow-hidden flex flex-col justify-end">
-                        <div 
-                          className="w-full bg-green-500 transition-all duration-300"
-                          style={{ height: `${((chargeDuration - charger.timeRemaining) / chargeDuration) * 100}%` }}
-                        />
-                     </div>
-                  </div>
-                ) : (
-                  <div className="text-slate-300 flex flex-col items-center">
-                    <BatteryCharging size={24} />
-                    <span className="text-xs mt-1">Idle</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+        {/* Explainability Sidebar (Legend & Logs) */}
+        <div className="w-48 border-l border-slate-200 bg-white flex flex-col text-xs">
+            
+            {/* Legend */}
+            <div className="p-3 border-b border-slate-100">
+                <h5 className="font-bold text-slate-700 flex items-center gap-1 mb-2">
+                    <Info size={12} /> Legend
+                </h5>
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#ff4b4b]"></div>
+                        <div className="leading-none">
+                            <span className="block font-medium">Critical</span>
+                            <span className="text-[9px] text-slate-400">High VOT ($150+)</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#3498db]"></div>
+                        <div className="leading-none">
+                            <span className="block font-medium">Standard</span>
+                            <span className="text-[9px] text-slate-400">Med VOT (~$50)</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#95a5a6]"></div>
+                        <div className="leading-none">
+                            <span className="block font-medium">Economy</span>
+                            <span className="text-[9px] text-slate-400">Low VOT (~$20)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Event Log */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
+                <h5 className="font-bold text-slate-700 flex items-center gap-1 p-3 pb-2 border-b border-slate-100 bg-white">
+                    <List size={12} /> Live Events
+                </h5>
+                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                    {state.recentLogs.length === 0 && (
+                        <p className="text-center text-slate-400 italic mt-4">No major events...</p>
+                    )}
+                    {state.recentLogs.map((log, i) => (
+                        <div key={i} className="bg-white p-2 rounded border border-slate-100 shadow-sm text-[10px] leading-tight text-slate-600 animate-in fade-in slide-in-from-right-4 duration-300">
+                            {log}
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
 
       </div>
