@@ -4,9 +4,38 @@ Same idea of the Python-based repo https://github.com/brunobastosrodrigues/sirq-
 
 This project simulates rational economic agents with heterogeneous Value of Time (VOT) to demonstrate allocative efficiency in constrained infrastructure. The idea is to benchmark SIRQ Auctions against FIFO (First-In, First-Out) for electric truck charging infrastructure. The core hypothesis: Replacing FIFO with an auction mechanism maximizes economic efficiency and protects critical supply chains (e.g., medical/perishable logistics) without requiring physical infrastructure expansion.
 
+## 🐳 Docker Deployment (Recommended)
+
+The easiest way to run SIRQ is using Docker. This method automatically handles all dependency installations and builds a production-ready container.
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
+### Instructions
+
+1. **Start the Application**
+   Run the following command in the project root:
+   ```bash
+   docker-compose up -d --build
+   ```
+   *Note: The `--build` flag ensures that the container installs all dependencies (`npm install`) and recompiles the application if you have made changes.*
+
+2. **Access the Dashboard**
+   Open your browser and navigate to:
+   ```
+   http://localhost:8080
+   ```
+
+3. **Stop the Application**
+   ```bash
+   docker-compose down
+   ```
+
+---
+
 ## 🚀 Quick Start (Local Installation)
 
-This project uses **React** with **TypeScript** and **Vite** (implied structure).
+If you prefer running it without Docker (e.g., for development):
 
 ### Prerequisites
 - Node.js (v18 or higher)
@@ -14,26 +43,18 @@ This project uses **React** with **TypeScript** and **Vite** (implied structure)
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd sirq-simulator
-   ```
-
-2. **Install Dependencies**
+1. **Install Dependencies**
    ```bash
    npm install
    ```
 
-3. **Run Development Server**
+2. **Run Development Server**
    ```bash
-   npm start
-   # OR
    npm run dev
    ```
 
-4. **Open in Browser**
-   Navigate to `http://localhost:5173` (or the port shown in your terminal).
+3. **Open in Browser**
+   Navigate to `http://localhost:5173`.
 
 ---
 
@@ -50,11 +71,11 @@ The main view shows two parallel universes:
 - **Interpreting Events:** Watch the **Live Event Feed** on the right side of the canvas. It will narrate when a high-priority truck "skips" the queue or "preempts" (kicks out) a charging truck.
 
 ### 2. Analytics (Results)
-Click the **Analytics** tab to view real-time generated plots for the 4 Research Questions (RQs):
-- **RQ1 Efficiency:** Revenue & Throughput.
-- **RQ2 Reliability:** Wait times for Critical agents.
-- **RQ3 Rationality:** Bidding behavior scatter plots.
-- **RQ4 Equity:** The gap between service levels for rich vs. poor agents.
+Click the **Analytics** tab to view real-time generated plots:
+- **Efficiency:** Revenue & Throughput.
+- **Reliability:** Wait times for Critical agents.
+- **Rationality:** Bidding behavior scatter plots.
+- **Equity:** The gap between service levels for rich vs. poor agents.
 
 ### 3. Lab Config
 Click the **Lab Config** tab to modify simulation parameters:
