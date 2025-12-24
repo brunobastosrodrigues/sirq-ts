@@ -2,7 +2,8 @@
 
 Same idea of the Python-based repo https://github.com/brunobastosrodrigues/sirq-simulator, but "interpreted" by Google AI.
 
-<img width="1257" height="686" alt="image" src="https://github.com/user-attachments/assets/c7d695c3-bfbb-497b-a309-3bd26a19d186" />
+<img width="889" height="674" alt="sirq-landpage1" src="https://github.com/user-attachments/assets/80eaad0d-e2c4-499f-98b5-f412562fdbc2" />
+
 
 This project simulates rational economic agents with heterogeneous Value of Time (VOT) to demonstrate allocative efficiency in constrained infrastructure. The idea is to benchmark SIRQ Auctions against FIFO (First-In, First-Out) for electric truck charging infrastructure. The core hypothesis: Replacing FIFO with an auction mechanism maximizes economic efficiency and protects critical supply chains (e.g., medical/perishable logistics) without requiring physical infrastructure expansion.
 
@@ -65,7 +66,6 @@ The easiest way to run SIRQ is using Docker. This method automatically handles a
 
 ---
 
-
 ---
 
 ## 🚀 Quick Start (Local Installation)
@@ -102,7 +102,8 @@ If you prefer running it without Docker (e.g., for development):
 
 ## 🔬 How to Use the Simulator
 
-### 1. Digital Twin (Visualization)
+### 1. Simulation
+<img width="1257" height="686" alt="image" src="https://github.com/user-attachments/assets/c7d695c3-bfbb-497b-a309-3bd26a19d186" />
 The main view shows two parallel universes:
 - **Control Group (FIFO):** Standard first-come-first-served logic.
 - **Experimental (SIRQ):** Highest-bidder-first logic with preemption.
@@ -114,12 +115,16 @@ The main view shows two parallel universes:
 
 ### 2. Analytics (Results)
 Click the **Analytics** tab to view real-time generated plots:
+<img width="1251" height="647" alt="sirq-analytics" src="https://github.com/user-attachments/assets/8ff5257e-557a-4c04-a66c-40e3b3561667" />
+
 - **Efficiency:** Revenue & Throughput.
 - **Reliability:** Wait times for Critical agents.
 - **Rationality:** Bidding behavior scatter plots.
 - **Equity:** The gap between service levels for rich vs. poor agents.
 
 ### 3. Lab Config
+<img width="695" height="674" alt="sirq-config" src="https://github.com/user-attachments/assets/47aa302c-c315-4f10-af8e-4c11f849eb6b" />
+
 Click the **Lab Config** tab to modify simulation parameters:
 - Change the number of chargers.
 - Adjust the "Smart Pricing" sensitivity.
