@@ -2,7 +2,7 @@
 
 Same idea of the Python-based repo https://github.com/brunobastosrodrigues/sirq-simulator, but "interpreted" by Google AI.
 
-<img width="1280" height="720" alt="sirq-landpage" src="https://github.com/user-attachments/assets/30d9081a-50e1-4573-bcf8-5765bbe77cfe" />
+<img width="1257" height="686" alt="image" src="https://github.com/user-attachments/assets/c7d695c3-bfbb-497b-a309-3bd26a19d186" />
 
 This project simulates rational economic agents with heterogeneous Value of Time (VOT) to demonstrate allocative efficiency in constrained infrastructure. The idea is to benchmark SIRQ Auctions against FIFO (First-In, First-Out) for electric truck charging infrastructure. The core hypothesis: Replacing FIFO with an auction mechanism maximizes economic efficiency and protects critical supply chains (e.g., medical/perishable logistics) without requiring physical infrastructure expansion.
 
