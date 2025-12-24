@@ -58,13 +58,13 @@ const ChartContainer: React.FC<{ title: string; subtitle?: string; children: Rea
     };
 
     return (
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col h-80" id={id}>
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-80 transition-colors" id={id}>
             <div className="flex justify-between items-start mb-2">
                 <div>
-                    <h3 className="text-sm font-bold text-slate-800">{title}</h3>
-                    {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white">{title}</h3>
+                    {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>}
                 </div>
-                <button onClick={downloadChart} className="p-1 text-slate-400 hover:text-indigo-600 transition-colors" title="Save as PNG">
+                <button onClick={downloadChart} className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Save as PNG">
                     <Download size={14} />
                 </button>
             </div>
@@ -123,7 +123,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
               <YAxis stroke="#94a3b8" tick={{fontSize: 10}} width={60} tickFormatter={(val) => `$${val}`} label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', offset: 0 }} />
-              <Tooltip formatter={(val: number) => [`$${val.toFixed(0)}`, '']} />
+              <Tooltip formatter={(val: number) => [`$${val.toFixed(0)}`, '']} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
               <Legend verticalAlign="top" height={36} />
               <Area type="monotone" dataKey="sirqRevenue" name="SIRQ Revenue" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.1} />
               <Area type="monotone" dataKey="fifoRevenue" name="FIFO Revenue" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
@@ -135,7 +135,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
               <YAxis stroke="#94a3b8" tick={{fontSize: 10}} width={60} unit="%" tickFormatter={(val) => `${(val * 100).toFixed(0)}`} label={{ value: 'Load (%)', angle: -90, position: 'insideLeft', offset: 0 }}/>
-              <Tooltip formatter={(val: number) => [`${(val * 100).toFixed(1)}%`, 'Utilization']} />
+              <Tooltip formatter={(val: number) => [`${(val * 100).toFixed(1)}%`, 'Utilization']} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
               <Line type="monotone" dataKey="utilization" name="Station Load" stroke="#f59e0b" strokeWidth={2} dot={false} />
             </LineChart>
         </ChartContainer>
@@ -145,7 +145,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" dataKey="vot" name="Value of Time" unit="$/hr" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Value of Time ($/hr)', position: 'insideBottom', offset: -10 }} />
               <YAxis type="number" dataKey="bid" name="Bid Amount" unit="$" stroke="#94a3b8" tick={{fontSize: 10}} width={60} label={{ value: 'Bid ($)', angle: -90, position: 'insideLeft', offset: 0 }} />
-              <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+              <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
               <Legend verticalAlign="top" height={36} />
               <Scatter name="SIRQ Transactions" data={scatterData} fill="#4f46e5" fillOpacity={0.6} />
             </ScatterChart>
@@ -156,7 +156,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
                 <YAxis width={60} label={{ value: 'Vehicles', angle: -90, position: 'insideLeft', offset: 0 }} />
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Area type="step" dataKey="queueLength" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} name="Vehicles in Queue" />
              </AreaChart>
         </ChartContainer>
@@ -170,7 +170,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
                 <YAxis stroke="#94a3b8" tick={{fontSize: 10}} width={60} label={{ value: 'Wait (ticks)', angle: -90, position: 'insideLeft', offset: 0 }} />
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Legend verticalAlign="top" height={36} />
                 <Line type="monotone" dataKey="sirqWaitCritical" name="SIRQ Critical" stroke="#4f46e5" strokeWidth={3} dot={false} />
                 <Line type="monotone" dataKey="fifoWaitCritical" name="FIFO Critical" stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={2} dot={false} />
@@ -182,7 +182,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
                 <YAxis unit="%" width={60} tickFormatter={(val) => `${(val * 100).toFixed(0)}`} label={{ value: 'Failure Rate (%)', angle: -90, position: 'insideLeft', offset: 0 }} />
-                <Tooltip formatter={(val: number) => [`${(val * 100).toFixed(1)}%`, 'Rate']} />
+                <Tooltip formatter={(val: number) => [`${(val * 100).toFixed(1)}%`, 'Rate']} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Legend verticalAlign="top" height={36} />
                 <Line type="monotone" dataKey="sirqFailureRate" stroke="#4f46e5" strokeWidth={2} name="SIRQ Failures" dot={false} />
                 <Line type="monotone" dataKey="fifoFailureRate" stroke="#ef4444" strokeWidth={2} strokeDasharray="5 5" name="FIFO Failures" dot={false} />
@@ -194,7 +194,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tick" label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
                 <YAxis allowDecimals={false} width={60} label={{ value: 'Count', angle: -90, position: 'insideLeft', offset: 0 }} />
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Line type="step" dataKey="preemptions" stroke="#f97316" strokeWidth={2} name="Total Preemptions" dot={false} />
             </LineChart>
       </ChartContainer>
@@ -208,7 +208,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
               <YAxis stroke="#94a3b8" tick={{fontSize: 10}} width={60} tickFormatter={(val) => `$${val}`} label={{ value: 'Pool ($)', angle: -90, position: 'insideLeft', offset: 0 }} />
-              <Tooltip />
+              <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
               <Area type="monotone" dataKey="subsidyPool" name="Accumulated Subsidy ($)" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
             </AreaChart>
       </ChartContainer>
@@ -218,7 +218,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
               <YAxis domain={[0, 1]} stroke="#94a3b8" width={60} tick={{fontSize: 10}} label={{ value: 'Gini Coeff', angle: -90, position: 'insideLeft', offset: 0 }} />
-              <Tooltip />
+              <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
               <Line type="monotone" dataKey="giniCoefficient" name="Gini Coeff" stroke="#f59e0b" strokeWidth={2} dot={false} />
             </LineChart>
       </ChartContainer>
@@ -228,7 +228,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="percentPop" unit="%" label={{ value: '% of Agents', position: 'insideBottom', offset: -10 }} />
                 <YAxis unit="%" width={60} label={{ value: '% of Total Wait', angle: -90, position: 'insideLeft', offset: 0 }} />
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Line type="monotone" dataKey="percentWait" stroke="#f59e0b" strokeWidth={2} dot={false} name="Actual" />
                 <Line type="monotone" dataKey="perfectLine" stroke="#94a3b8" strokeDasharray="5 5" dot={false} name="Perfect Equality" />
             </LineChart>
@@ -239,7 +239,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tick" label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
                 <YAxis label={{ value: 'Wait (ticks)', angle: -90, position: 'insideLeft', offset: 0 }} width={60} />
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Legend verticalAlign="top" height={36} />
                 <Line type="monotone" dataKey="sirqWaitEconomy" stroke="#94a3b8" dot={false} name="Economy" />
                 <Line type="monotone" dataKey="sirqWaitCritical" stroke="#ef4444" dot={false} name="Critical" />
@@ -256,7 +256,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                 <XAxis type="number" dataKey="x" name="Station Utilization" unit="%" domain={[0, 100]} label={{ value: 'Utilization (%)', position: 'insideBottom', offset: -10 }} />
                 <YAxis type="number" dataKey="y" name="Surge Multiplier" unit="x" domain={[1, 'auto']} width={60} label={{ value: 'Surge (x)', angle: -90, position: 'insideLeft', offset: 0 }} />
                 <ZAxis type="number" dataKey="z" range={[50, 400]} name="Wait Time" unit="m" />
-                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Scatter name="System State" data={heatMapData} fill="#8884d8" fillOpacity={0.6} />
             </ScatterChart>
         </ChartContainer>
@@ -266,7 +266,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                  <XAxis dataKey="tick" label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
                  <YAxis yAxisId="left" width={60} label={{ value: 'Price ($/kWh)', angle: -90, position: 'insideLeft', offset: 0 }} />
                  <YAxis yAxisId="right" orientation="right" width={60} label={{ value: 'Queue Length', angle: 90, position: 'insideRight', offset: 0 }} />
-                 <Tooltip />
+                 <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                  <Legend verticalAlign="top" height={36} />
                  <Line yAxisId="left" type="monotone" dataKey="price" stroke="#10b981" dot={false} name="Price" />
                  <Area yAxisId="right" type="monotone" dataKey="queueLength" fill="#6366f1" stroke="#6366f1" fillOpacity={0.2} name="Queue" />
@@ -276,8 +276,8 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
-       <div className="flex gap-2 p-4 border-b border-slate-200 bg-white sticky top-0 z-10 shadow-sm overflow-x-auto">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 transition-colors">
+       <div className="flex gap-2 p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10 shadow-sm overflow-x-auto transition-colors">
           {[
               { id: 'efficiency', label: '1. Efficiency' },
               { id: 'reliability', label: '2. Reliability (Critical)' },
@@ -291,7 +291,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                     "px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap",
                     activeTab === tab.id 
                     ? "bg-indigo-600 text-white shadow-md" 
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                 )}
               >
                   {tab.label}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, BarChart3, LayoutDashboard, Settings, Download, Upload, Zap, ArrowLeft, FileText, Check } from 'lucide-react';
+import { Play, Pause, RotateCcw, BarChart3, LayoutDashboard, Settings, Download, Upload, Zap, ArrowLeft, FileText, Check, Moon, Sun } from 'lucide-react';
 import { SimulationEngine } from './services/simulation';
 import { SimulationCanvas } from './components/SimulationCanvas';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
@@ -50,6 +50,7 @@ export default function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [config, setConfig] = useState<SimulationConfig>(DEFAULT_CONFIG);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [darkMode, setDarkMode] = useState(false);
   
   // Simulation State
   const engineRef = useRef<SimulationEngine | null>(null);
@@ -68,6 +69,15 @@ export default function App() {
 
   // File Input Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Dark Mode Effect ---
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   const initSimulation = useCallback(() => {
     engineRef.current = new SimulationEngine(config);
@@ -231,27 +241,27 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-screen bg-slate-100 flex flex-col text-slate-900 overflow-hidden">
+    <div className="h-screen w-screen bg-slate-100 dark:bg-slate-950 flex flex-col text-slate-900 dark:text-slate-100 overflow-hidden transition-colors duration-300">
       
       {/* Navbar */}
-      <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 z-10">
+      <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between shrink-0 z-10 transition-colors duration-300">
         <div className="flex items-center gap-3">
           <button 
              onClick={() => setViewState('landing')}
-             className="mr-2 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+             className="mr-2 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
           >
               <ArrowLeft size={20} />
           </button>
-          <div className="bg-indigo-600 p-2 rounded-lg text-white">
+          <div className="bg-indigo-600 p-2 rounded-lg text-white shadow-lg shadow-indigo-500/30">
             <Zap size={20} fill="currentColor" />
           </div>
           <div>
-            <h1 className="font-bold text-lg tracking-tight text-slate-900">SIRQ</h1>
-            <p className="text-[10px] text-slate-500 font-medium">Research Build v1.0.7</p>
+            <h1 className="font-bold text-lg tracking-tight text-slate-900 dark:text-white">SIRQ</h1>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Research Build v1.0.7</p>
           </div>
         </div>
 
-        <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+        <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700 hidden md:flex">
           {[
             { id: 'twin', label: 'Simulation', icon: LayoutDashboard },
             { id: 'analytics', label: 'Analytics (RQs)', icon: BarChart3 },
@@ -262,13 +272,28 @@ export default function App() {
               onClick={() => setActiveTab(tab.id as any)}
               className={clsx(
                 "flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all",
-                activeTab === tab.id ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                activeTab === tab.id
+                    ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               )}
             >
               <tab.icon size={16} />
               {tab.label}
             </button>
           ))}
+        </div>
+
+        {/* Mobile Tab Select - simplified */}
+        <div className="md:hidden">
+            <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value as any)}
+                className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm rounded border border-slate-200 dark:border-slate-700 px-2 py-1"
+            >
+                <option value="twin">Simulation</option>
+                <option value="analytics">Analytics</option>
+                <option value="lab">Lab Config</option>
+            </select>
         </div>
 
         <div className="flex items-center gap-2">
@@ -283,7 +308,7 @@ export default function App() {
             
             <button 
                 onClick={handleImportClick}
-                className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-200 transition-all text-sm"
+                className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all text-sm"
                 title="Import Dataset"
             >
                 {importStatus ? <Check size={16} className="text-emerald-600" /> : <Upload size={16} />}
@@ -292,18 +317,26 @@ export default function App() {
 
             <button 
                 onClick={handleExport}
-                className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-200 transition-all text-sm"
+                className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all text-sm"
                 title="Export Dataset"
             >
                 <Download size={16} />
                 <span className="hidden sm:inline">Export</span>
             </button>
             
-            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+             <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="flex items-center justify-center w-9 h-9 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-all"
+                title="Toggle Dark Mode"
+            >
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
 
              <button 
                 onClick={() => setViewState('docs')}
-                className="flex items-center gap-2 px-3 py-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-all text-sm font-medium"
+                className="hidden sm:flex items-center gap-2 px-3 py-2 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-md transition-all text-sm font-medium"
             >
                 <FileText size={16} />
                 Docs
@@ -316,25 +349,27 @@ export default function App() {
         
         {/* Controls Overlay (Only visible in Simulation Mode) */}
         {activeTab === 'twin' && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-sm border border-slate-200 shadow-xl rounded-full px-5 py-3 flex items-center gap-5">
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 shadow-xl rounded-full px-5 py-3 flex items-center gap-5 transition-all">
                 <div className="flex items-center gap-3">
                 <button 
                     onClick={() => setIsRunning(!isRunning)}
                     className={clsx(
                         "w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md",
-                        isRunning ? "bg-amber-100 text-amber-600 hover:bg-amber-200" : "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
+                        isRunning
+                            ? "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/70"
+                            : "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/70"
                     )}
                 >
                     {isRunning ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-1" />}
                 </button>
-                <button onClick={handleReset} className="w-12 h-12 rounded-full flex items-center justify-center bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all shadow-sm">
+                <button onClick={handleReset} className="w-12 h-12 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all shadow-sm">
                     <RotateCcw size={20} />
                 </button>
                 </div>
-                <div className="w-px h-8 bg-slate-300 mx-1" />
-                <div className="flex flex-col text-xs font-medium text-slate-600 min-w-[100px]">
-                    <span className="tabular-nums text-sm text-slate-900 font-bold">Tick: {engineRef.current?.tickCount || 0}</span>
-                    <span className="tabular-nums text-slate-500">Sim Time: {((engineRef.current?.tickCount || 0) / 60).toFixed(1)}h</span>
+                <div className="w-px h-8 bg-slate-300 dark:bg-slate-600 mx-1" />
+                <div className="flex flex-col text-xs font-medium text-slate-600 dark:text-slate-400 min-w-[100px]">
+                    <span className="tabular-nums text-sm text-slate-900 dark:text-white font-bold">Tick: {engineRef.current?.tickCount || 0}</span>
+                    <span className="tabular-nums text-slate-500 dark:text-slate-500">Sim Time: {((engineRef.current?.tickCount || 0) / 60).toFixed(1)}h</span>
                 </div>
             </div>
         )}
@@ -352,7 +387,7 @@ export default function App() {
 
             {/* ANALYTICS TAB */}
             {activeTab === 'analytics' && (
-               <div className="h-full bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
+               <div className="h-full bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                    <AnalyticsPanel data={history} microData={microHistory} />
                </div>
             )}
@@ -360,83 +395,83 @@ export default function App() {
              {/* LAB TAB */}
              {activeTab === 'lab' && (
                <div className="max-w-4xl mx-auto h-full overflow-y-auto pb-20">
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-                     <h2 className="text-2xl font-bold mb-6 text-slate-800">Experiment Configuration</h2>
+                  <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-8">
+                     <h2 className="text-2xl font-bold mb-6 text-slate-800 dark:text-white">Experiment Configuration</h2>
                      
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                          
                          {/* Infrastructure */}
                          <div className="space-y-6">
-                            <h3 className="font-semibold text-slate-500 uppercase text-xs tracking-wider">Infrastructure</h3>
+                            <h3 className="font-semibold text-slate-500 dark:text-slate-400 uppercase text-xs tracking-wider">Infrastructure</h3>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Chargers per Station</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Chargers per Station</label>
                                 <input 
                                     type="range" min="1" max="10" 
                                     value={config.numChargers}
                                     onChange={(e) => setConfig({...config, numChargers: parseInt(e.target.value)})}
-                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                                 />
-                                <div className="text-right text-xs text-indigo-600 font-bold mt-1">{config.numChargers} Units</div>
+                                <div className="text-right text-xs text-indigo-600 dark:text-indigo-400 font-bold mt-1">{config.numChargers} Units</div>
                             </div>
                             
                             {/* Charger Specs */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Charger Power (kW)</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Charger Power (kW)</label>
                                 <input 
                                     type="number" 
                                     value={config.chargerPower}
                                     onChange={(e) => setConfig({...config, chargerPower: parseFloat(e.target.value)})}
-                                    className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                                    className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 rounded px-2 py-1 text-sm dark:text-white"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Battery Capacity (kWh)</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Battery Capacity (kWh)</label>
                                 <input 
                                     type="number" 
                                     value={config.batteryCapacity}
                                     onChange={(e) => setConfig({...config, batteryCapacity: parseFloat(e.target.value)})}
-                                    className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                                    className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 rounded px-2 py-1 text-sm dark:text-white"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Traffic (Arrival Rate)</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Traffic (Arrival Rate)</label>
                                 <input 
                                     type="range" min="1" max="50" 
                                     value={config.arrivalRate * 100}
                                     onChange={(e) => setConfig({...config, arrivalRate: parseInt(e.target.value) / 100})}
-                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                                 />
-                                <div className="text-right text-xs text-indigo-600 font-bold mt-1">{(config.arrivalRate * 100).toFixed(1)}% / min</div>
+                                <div className="text-right text-xs text-indigo-600 dark:text-indigo-400 font-bold mt-1">{(config.arrivalRate * 100).toFixed(1)}% / min</div>
                             </div>
                          </div>
 
                          {/* Economics */}
                          <div className="space-y-6">
-                            <h3 className="font-semibold text-slate-500 uppercase text-xs tracking-wider">Economics (SIRQ)</h3>
+                            <h3 className="font-semibold text-slate-500 dark:text-slate-400 uppercase text-xs tracking-wider">Economics (SIRQ)</h3>
                              
-                             <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                             <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                                  <div>
-                                     <span className="block text-sm font-medium text-slate-900">Smart Pricing</span>
-                                     <span className="block text-[10px] text-slate-500">Utilization-based surge</span>
+                                     <span className="block text-sm font-medium text-slate-900 dark:text-white">Smart Pricing</span>
+                                     <span className="block text-[10px] text-slate-500 dark:text-slate-400">Utilization-based surge</span>
                                  </div>
                                  <button 
                                     onClick={() => setConfig({...config, smartPricing: !config.smartPricing})}
-                                    className={clsx("w-9 h-5 rounded-full transition-colors relative", config.smartPricing ? "bg-indigo-600" : "bg-slate-300")}
+                                    className={clsx("w-9 h-5 rounded-full transition-colors relative", config.smartPricing ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-600")}
                                  >
                                      <span className={clsx("absolute top-1 w-3 h-3 bg-white rounded-full transition-transform", config.smartPricing ? "left-5" : "left-1")} />
                                  </button>
                              </div>
 
                              <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Preemption Premium</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Preemption Premium</label>
                                 <input 
                                     type="range" min="100" max="200" step="10"
                                     value={config.preemptionPremium * 100}
                                     onChange={(e) => setConfig({...config, preemptionPremium: parseInt(e.target.value) / 100})}
-                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                                 />
-                                <div className="text-right text-xs text-indigo-600 font-bold mt-1">{config.preemptionPremium}x Bid</div>
+                                <div className="text-right text-xs text-indigo-600 dark:text-indigo-400 font-bold mt-1">{config.preemptionPremium}x Bid</div>
                                 <p className="text-[10px] text-slate-400 mt-1">
                                     Multiplier required for a high-priority agent to swap with an incumbent charger.
                                 </p>
@@ -445,18 +480,18 @@ export default function App() {
                      </div>
 
                      {/* Profile Config */}
-                     <div className="mt-8 pt-6 border-t border-slate-100">
-                         <h3 className="font-semibold text-slate-500 uppercase text-xs tracking-wider mb-4">Agent Profiles (Value of Time)</h3>
+                     <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+                         <h3 className="font-semibold text-slate-500 dark:text-slate-400 uppercase text-xs tracking-wider mb-4">Agent Profiles (Value of Time)</h3>
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                              {[AgentType.CRITICAL, AgentType.STANDARD, AgentType.ECONOMY].map(type => (
-                                 <div key={type} className={clsx("p-4 rounded border text-center", 
-                                    type === AgentType.CRITICAL ? "bg-red-50 border-red-100" : 
-                                    type === AgentType.STANDARD ? "bg-blue-50 border-blue-100" : 
-                                    "bg-slate-50 border-slate-200")}>
-                                     <h4 className="font-bold text-xs uppercase mb-3">{type}</h4>
+                                 <div key={type} className={clsx("p-4 rounded border text-center transition-colors",
+                                    type === AgentType.CRITICAL ? "bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900" :
+                                    type === AgentType.STANDARD ? "bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-900" :
+                                    "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700")}>
+                                     <h4 className="font-bold text-xs uppercase mb-3 dark:text-slate-300">{type}</h4>
                                      <div className="space-y-2 text-left">
                                          <div>
-                                             <label className="text-[10px] text-slate-500">Min VOT ($/hr)</label>
+                                             <label className="text-[10px] text-slate-500 dark:text-slate-400">Min VOT ($/hr)</label>
                                              <input type="number" 
                                                 value={config.profiles[type].minVot}
                                                 onChange={(e) => {
@@ -464,11 +499,11 @@ export default function App() {
                                                     newProfiles[type].minVot = parseFloat(e.target.value);
                                                     setConfig({...config, profiles: newProfiles});
                                                 }}
-                                                className="w-full text-xs border rounded p-1"
+                                                className="w-full text-xs border rounded p-1 dark:bg-slate-800 dark:border-slate-600 dark:text-white"
                                              />
                                          </div>
                                          <div>
-                                             <label className="text-[10px] text-slate-500">Max VOT ($/hr)</label>
+                                             <label className="text-[10px] text-slate-500 dark:text-slate-400">Max VOT ($/hr)</label>
                                              <input type="number" 
                                                 value={config.profiles[type].maxVot}
                                                 onChange={(e) => {
@@ -476,11 +511,11 @@ export default function App() {
                                                     newProfiles[type].maxVot = parseFloat(e.target.value);
                                                     setConfig({...config, profiles: newProfiles});
                                                 }}
-                                                className="w-full text-xs border rounded p-1"
+                                                className="w-full text-xs border rounded p-1 dark:bg-slate-800 dark:border-slate-600 dark:text-white"
                                              />
                                          </div>
                                          <div>
-                                             <label className="text-[10px] text-slate-500">Patience (min)</label>
+                                             <label className="text-[10px] text-slate-500 dark:text-slate-400">Patience (min)</label>
                                              <input type="number" 
                                                 value={config.profiles[type].patience}
                                                 onChange={(e) => {
@@ -488,7 +523,7 @@ export default function App() {
                                                     newProfiles[type].patience = parseFloat(e.target.value);
                                                     setConfig({...config, profiles: newProfiles});
                                                 }}
-                                                className="w-full text-xs border rounded p-1"
+                                                className="w-full text-xs border rounded p-1 dark:bg-slate-800 dark:border-slate-600 dark:text-white"
                                              />
                                          </div>
                                      </div>
@@ -500,7 +535,7 @@ export default function App() {
                      <div className="mt-8">
                         <button 
                             onClick={handleReset}
-                            className="w-full py-3 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors shadow-sm"
+                            className="w-full py-3 bg-slate-900 dark:bg-indigo-600 text-white rounded-lg font-medium hover:bg-slate-800 dark:hover:bg-indigo-700 transition-colors shadow-sm"
                         >
                             Restart Simulation
                         </button>
