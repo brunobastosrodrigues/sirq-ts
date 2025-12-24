@@ -36,35 +36,11 @@ The easiest way to run SIRQ is using Docker. This method automatically handles a
    docker compose down
    ```
 
-### Using Docker CLI (no docker-compose)
-
-1. **Build the image**
-   ```bash
-   docker build -t sirq-simulator:latest .
-   ```
-
-2. **Run the container (maps host 8080 → container 80)**
-   ```bash
-   docker run -d --name sirq_simulator -p 8080:80 sirq-simulator:latest
-   ```
-
-3. **View logs**
-   ```bash
-   docker logs -f sirq_simulator
-   ```
-
-4. **Stop & remove**
-   ```bash
-   docker stop sirq_simulator && docker rm sirq_simulator
-   ```
-
 ### Troubleshooting & tips
 
 - If port 8080 is already in use, map to a different host port (for example `-p 8081:80`), or update `docker-compose.yml`.
 - To run without building (if no source changes were made since the last build) omit `--build`.
 - Use the Docker Compose V2 CLI (`docker compose` — no hyphen), e.g. `docker compose up -d --build`; this is the recommended syntax on recent Docker versions.
-
----
 
 ---
 
@@ -104,7 +80,9 @@ If you prefer running it without Docker (e.g., for development):
 
 ### 1. Simulation
 <img width="1257" height="686" alt="image" src="https://github.com/user-attachments/assets/c7d695c3-bfbb-497b-a309-3bd26a19d186" />
+
 The main view shows two parallel universes:
+
 - **Control Group (FIFO):** Standard first-come-first-served logic.
 - **Experimental (SIRQ):** Highest-bidder-first logic with preemption.
 - **Visuals:**
@@ -114,7 +92,9 @@ The main view shows two parallel universes:
 - **Interpreting Events:** Watch the **Live Event Feed** on the right side of the canvas. It will narrate when a high-priority truck "skips" the queue or "preempts" (kicks out) a charging truck.
 
 ### 2. Analytics (Results)
+
 Click the **Analytics** tab to view real-time generated plots:
+
 <img width="1251" height="647" alt="sirq-analytics" src="https://github.com/user-attachments/assets/8ff5257e-557a-4c04-a66c-40e3b3561667" />
 
 - **Efficiency:** Revenue & Throughput.
@@ -123,6 +103,7 @@ Click the **Analytics** tab to view real-time generated plots:
 - **Equity:** The gap between service levels for rich vs. poor agents.
 
 ### 3. Lab Config
+
 <img width="695" height="674" alt="sirq-config" src="https://github.com/user-attachments/assets/47aa302c-c315-4f10-af8e-4c11f849eb6b" />
 
 Click the **Lab Config** tab to modify simulation parameters:
