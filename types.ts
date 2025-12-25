@@ -25,6 +25,8 @@ export interface Agent {
   enteredChargingAt?: number;
   energyDelivered: number; // kWh
   hasReservation: boolean; // Thesis Ch 3.5: Route planning guarantee
+  compensationBalance: number; // Earnings from buyouts
+  preemptedCount: number; // Times displaced
 }
 
 export interface Charger {

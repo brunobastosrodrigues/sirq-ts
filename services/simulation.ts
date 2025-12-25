@@ -150,8 +150,23 @@ export class SimulationEngine {
       maxPriceTolerance: profile.maxPriceTolerance,
       status: 'queueing',
       energyDelivered: 0,
-      hasReservation
+      hasReservation,
+      compensationBalance: 0,
+      preemptedCount: 0
     };
+  }
+
+  private getInconvenienceCost(type: AgentType): number {
+    switch (type) {
+        case AgentType.ECONOMY:
+            return 5.00;
+        case AgentType.STANDARD:
+            return 20.00;
+        case AgentType.CRITICAL:
+            return 5000.00;
+        default:
+            return 10.00;
+    }
   }
 
   private addLog(state: StationState, message: string) {
@@ -335,6 +350,10 @@ export class SimulationEngine {
 
     if (state.strategy === 'SIRQ') {
         state.queue.sort((a, b) => {
+            // Priority 0: Preempted Agents (Highest Priority to avoid starvation)
+            if (a.preemptedCount > 0 && b.preemptedCount === 0) return -1;
+            if (a.preemptedCount === 0 && b.preemptedCount > 0) return 1;
+
             // Priority 1: Reservations
             if (a.hasReservation && !b.hasReservation) return -1;
             if (!a.hasReservation && b.hasReservation) return 1;
@@ -359,9 +378,16 @@ export class SimulationEngine {
                 hasFreeSpot = true;
             } else if (c.status === 'busy' && c.currentAgent) {
                 if (!c.currentAgent.hasReservation) {
-                    if (c.currentAgent.bid < minBid) {
-                        minBid = c.currentAgent.bid;
-                        lowestBidCharger = c;
+                    // Check grace period safety rules
+                    const soc = c.currentAgent.energyDelivered / this.config.batteryCapacity;
+                    const chargeTime = (this.tickCount - (c.currentAgent.enteredChargingAt || this.tickCount));
+
+                    // Grace Period: Don't displace if > 85% charged OR charging for < 15 mins
+                    if (soc <= 0.85 && chargeTime >= 15) {
+                        if (c.currentAgent.bid < minBid) {
+                            minBid = c.currentAgent.bid;
+                            lowestBidCharger = c;
+                        }
                     }
                 }
             }
@@ -373,16 +399,39 @@ export class SimulationEngine {
             if (topCandidate.hasReservation) {
                 shouldSwap = true;
                 this.addLog(state, `RESERVATION: ${topCandidate.type} claimed spot from ${lowestBidCharger.currentAgent.type}`);
-            } 
-            else if (topCandidate.bid > minBid * this.config.preemptionPremium) {
-                shouldSwap = true;
-                this.addLog(state, `AUCTION WON: ${topCandidate.type} ($${topCandidate.bid.toFixed(0)}) bought spot from ${lowestBidCharger.currentAgent.type}`);
-                this.cumulativePreemptions++;
+            } else {
+                // Interactive Negotiation Logic
+                const victim = lowestBidCharger.currentAgent;
+                const remainingKwh = this.config.batteryCapacity - victim.energyDelivered;
+                const valueOfCharge = remainingKwh * state.currentPrice;
+                const wta = valueOfCharge + this.getInconvenienceCost(victim.type);
+
+                const cpoMargin = 0.10;
+                const requiredBid = wta * (1 + cpoMargin);
+
+                if (topCandidate.bid >= requiredBid) {
+                    shouldSwap = true;
+
+                    // Financial Settlement
+                    victim.compensationBalance += wta;
+                    const surplus = topCandidate.bid - wta;
+                    // Note: 'revenue' normally tracks charging fees.
+                    // This surplus is essentially a "brokerage fee" + "energy pre-payment"??
+                    // The prompt says "CPO keeps (Attacker_Bid - WTA) as surplus revenue".
+                    // We add this to the station revenue.
+                    state.revenue += surplus;
+
+                    this.addLog(state, `🤝 DEAL: ${topCandidate.type} bought out ${victim.type} for $${topCandidate.bid.toFixed(2)}`);
+                    this.cumulativePreemptions++;
+                } else {
+                    this.addLog(state, `⛔ REJECTED: ${victim.type} refused buyout (Bid $${topCandidate.bid.toFixed(2)} < Required $${requiredBid.toFixed(2)})`);
+                }
             }
 
             if (shouldSwap) {
                 const evictedAgent = lowestBidCharger.currentAgent;
                 evictedAgent.status = 'preempted';
+                evictedAgent.preemptedCount++;
                 state.queue.push(evictedAgent); 
                 state.queue.shift(); 
                 lowestBidCharger.currentAgent = topCandidate;
