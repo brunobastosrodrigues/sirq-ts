@@ -388,11 +388,60 @@ export class SimulationEngine {
     return microUpdates;
   }
 
-  public tick(): { fifo: StationState, sirq: StationState, historical: HistoricalDataPoint, microData: MicroDataPoint[] } {
+  // Calculate dynamic arrival rate based on time of day (Rush Hours)
+  private getCurrentArrivalRate(tick: number): { rate: number, multiplier: number, timeOfDayMinutes: number } {
+     // Assume Tick 0 = 06:00 AM (start of day shift)
+     // 1 Tick = 1 Minute
+     const startOfDayMinutes = 6 * 60; // 360
+     const timeOfDayMinutes = (startOfDayMinutes + tick) % 1440; // 0-1440
+
+     if (!this.config.enableRushHours) {
+         return { rate: this.config.arrivalRate, multiplier: 1.0, timeOfDayMinutes };
+     }
+
+     // Define Peaks:
+     // Morning Peak: 07:00 - 09:00 (Peak at 08:00) => Minutes 420 - 540
+     // Evening Peak: 16:00 - 19:00 (Peak at 17:30) => Minutes 960 - 1140
+
+     let multiplier = 1.0;
+
+     // Morning Rush (Gaussian-ish)
+     if (timeOfDayMinutes >= 420 && timeOfDayMinutes <= 540) {
+         const peak = 480; // 08:00
+         const sigma = 30;
+         const val = Math.exp(-Math.pow(timeOfDayMinutes - peak, 2) / (2 * Math.pow(sigma, 2)));
+         multiplier += (this.config.rushHourMultiplier - 1) * val;
+     }
+
+     // Evening Rush
+     if (timeOfDayMinutes >= 960 && timeOfDayMinutes <= 1140) {
+         const peak = 1050; // 17:30
+         const sigma = 45;
+         const val = Math.exp(-Math.pow(timeOfDayMinutes - peak, 2) / (2 * Math.pow(sigma, 2)));
+         multiplier += (this.config.rushHourMultiplier - 1) * val;
+     }
+
+     return {
+         rate: this.config.arrivalRate * multiplier,
+         multiplier,
+         timeOfDayMinutes
+     };
+  }
+
+  public tick(): {
+      fifo: StationState,
+      sirq: StationState,
+      historical: HistoricalDataPoint,
+      microData: MicroDataPoint[],
+      simTime: number,
+      trafficMultiplier: number
+  } {
     this.tickCount++;
 
+    const { rate, multiplier, timeOfDayMinutes } = this.getCurrentArrivalRate(this.tickCount);
+
     let newAgent: Agent | null = null;
-    if (Math.random() < this.config.arrivalRate) {
+    if (Math.random() < rate) {
       newAgent = this.generateAgent(this.tickCount);
     }
 
@@ -419,6 +468,8 @@ export class SimulationEngine {
         fifo: this.fifoState,
         sirq: this.sirqState,
         microData: [...fifoMicro, ...sirqMicro],
+        simTime: timeOfDayMinutes,
+        trafficMultiplier: multiplier,
         historical: {
             tick: this.tickCount,
             fifoRevenue: this.fifoState.revenue,
