@@ -172,6 +172,20 @@ export class SimulationEngine {
       return (2 * numerator) / denominator - (n + 1) / n;
   }
 
+  private calculateCurrentLoad(state: StationState): number {
+    let load = 0;
+    state.chargers.forEach(c => {
+        if (c.status === 'busy' && c.currentAgent) {
+            load += this.getChargeRate(
+                c.currentAgent.energyDelivered,
+                this.config.batteryCapacity,
+                this.config.chargerPower
+            );
+        }
+    });
+    return load;
+  }
+
   private updatePrice(state: StationState): number {
     if (!this.config.smartPricing) {
       state.currentPrice = this.config.baseGridPrice;
@@ -184,12 +198,26 @@ export class SimulationEngine {
 
     // Feature 5: Price-Responsive Demand (VPP)
     let gridFactor = 0;
-    if (this.config.gridConnectionLimit > 0) {
-        const gridStressIndex = state.currentGridLoad / this.config.gridConnectionLimit;
+    if (this.config.enableGridAwareness && this.config.transformerLimit > 0) {
+        // Recalculate load to ensure we have the latest instantaneous value for pricing
+        const currentLoad = this.calculateCurrentLoad(state);
+        const gridStressIndex = currentLoad / this.config.transformerLimit;
+
         // Simple linear factor: if Load > 80%, start increasing price aggressively
         if (gridStressIndex > 0.8) {
-             gridFactor = (gridStressIndex - 0.8) * 2.0; // scales 0 to 0.4+
+             gridFactor = (gridStressIndex - 0.8) * this.config.gridStressSensitivity;
         }
+
+        if (gridStressIndex > 0.95) {
+             this.addLog(state, `⚠️ GRID ALERT: Load at ${(gridStressIndex * 100).toFixed(0)}%`);
+        }
+    }
+    // Fallback to legacy gridConnectionLimit if enableGridAwareness is not set but gridConnectionLimit is used
+    else if (this.config.gridConnectionLimit > 0) {
+         const gridStressIndex = state.currentGridLoad / this.config.gridConnectionLimit;
+         if (gridStressIndex > 0.8) {
+             gridFactor = (gridStressIndex - 0.8) * 2.0;
+         }
     }
 
     let surgeMultiplier = 1 + (utilization * this.config.surgeSensitivity) + (queueFactor * this.config.surgeSensitivity) + gridFactor;
