@@ -262,6 +262,32 @@ export class SimulationEngine {
       }
   }
 
+  private getInconvenienceCost(type: AgentType): number {
+      switch (type) {
+          case AgentType.ECONOMY: return 5.00;
+          case AgentType.STANDARD: return 20.00;
+          case AgentType.CRITICAL: return 5000.00;
+          default: return 10.00;
+      }
+  }
+
+  private performSwap(state: StationState, charger: Charger, newAgent: Agent) {
+      if (!charger.currentAgent) return;
+
+      const evictedAgent = charger.currentAgent;
+      evictedAgent.status = 'preempted';
+      evictedAgent.preemptedCount = (evictedAgent.preemptedCount || 0) + 1;
+
+      state.queue.push(evictedAgent);
+      // Note: The main processStation logic will re-sort the queue next tick
+      // but we need to remove the newAgent from the queue immediately
+      state.queue.shift(); // Remove topCandidate (which is newAgent)
+
+      charger.currentAgent = newAgent;
+      charger.currentAgent.status = 'charging';
+      charger.currentAgent.enteredChargingAt = this.tickCount;
+  }
+
   private processStation(state: StationState, newAgent: Agent | null): MicroDataPoint[] {
     const microUpdates: MicroDataPoint[] = [];
 
@@ -338,9 +364,12 @@ export class SimulationEngine {
             // Priority 1: Reservations
             if (a.hasReservation && !b.hasReservation) return -1;
             if (!a.hasReservation && b.hasReservation) return 1;
-            // Priority 2: Highest Bid
+            // Priority 2: Previously Preempted (High Priority)
+            if (a.status === 'preempted' && b.status !== 'preempted') return -1;
+            if (a.status !== 'preempted' && b.status === 'preempted') return 1;
+            // Priority 3: Highest Bid
             if (b.bid !== a.bid) return b.bid - a.bid;
-            // Priority 3: Arrival Time
+            // Priority 4: Arrival Time
             return a.arrivalTime - b.arrivalTime;
         });
     } else {
@@ -350,44 +379,72 @@ export class SimulationEngine {
     // 4. Charger Logic
     if (state.strategy === 'SIRQ' && state.queue.length > 0) {
         const topCandidate = state.queue[0];
-        let lowestBidCharger: Charger | null = null;
-        let minBid = Infinity;
+        let bestTargetCharger: Charger | null = null;
+        let lowestWTA = Infinity;
         let hasFreeSpot = false;
 
+        // Find best target (Lowest WTA) or check for free spots
         state.chargers.forEach(c => {
             if (c.status === 'idle') {
                 hasFreeSpot = true;
-            } else if (c.status === 'busy' && c.currentAgent) {
-                if (!c.currentAgent.hasReservation) {
-                    if (c.currentAgent.bid < minBid) {
-                        minBid = c.currentAgent.bid;
-                        lowestBidCharger = c;
-                    }
+            } else if (c.status === 'busy' && c.currentAgent && !c.currentAgent.hasReservation) {
+                // Calculate WTA for this agent
+                const agent = c.currentAgent;
+                const remainingKwh = this.config.batteryCapacity - agent.energyDelivered;
+                const valueOfCharge = remainingKwh * state.currentPrice;
+                const wta = valueOfCharge + this.getInconvenienceCost(agent.type);
+
+                // Track lowest WTA
+                if (wta < lowestWTA) {
+                    lowestWTA = wta;
+                    bestTargetCharger = c;
                 }
             }
         });
 
-        if (!hasFreeSpot && lowestBidCharger && lowestBidCharger.currentAgent) {
-            let shouldSwap = false;
+        if (!hasFreeSpot && bestTargetCharger && bestTargetCharger.currentAgent) {
+            const victim = bestTargetCharger.currentAgent;
+            const attacker = topCandidate;
             
-            if (topCandidate.hasReservation) {
-                shouldSwap = true;
-                this.addLog(state, `RESERVATION: ${topCandidate.type} claimed spot from ${lowestBidCharger.currentAgent.type}`);
-            } 
-            else if (topCandidate.bid > minBid * this.config.preemptionPremium) {
-                shouldSwap = true;
-                this.addLog(state, `AUCTION WON: ${topCandidate.type} ($${topCandidate.bid.toFixed(0)}) bought spot from ${lowestBidCharger.currentAgent.type}`);
-                this.cumulativePreemptions++;
-            }
+            // Check Grace Period (Safety Rule)
+            const soc = victim.energyDelivered / this.config.batteryCapacity;
+            const timeCharging = this.tickCount - (victim.enteredChargingAt || 0);
+            const inGracePeriod = soc > 0.85 || timeCharging < 15;
 
-            if (shouldSwap) {
-                const evictedAgent = lowestBidCharger.currentAgent;
-                evictedAgent.status = 'preempted';
-                state.queue.push(evictedAgent); 
-                state.queue.shift(); 
-                lowestBidCharger.currentAgent = topCandidate;
-                lowestBidCharger.currentAgent.status = 'charging';
-                lowestBidCharger.currentAgent.enteredChargingAt = this.tickCount;
+            if (attacker.hasReservation && !victim.hasReservation) {
+                this.addLog(state, `RESERVATION: ${attacker.type} claimed spot from ${victim.type}`);
+                this.performSwap(state, bestTargetCharger, attacker);
+            }
+            else if (!inGracePeriod && !victim.hasReservation) {
+                 // Interactive Negotiation Protocol
+                 const wta = lowestWTA; // Already calculated
+
+                 // 2. Calculate Platform Requirement
+                 const cpoMargin = 0.10;
+                 const requiredBid = wta * (1 + cpoMargin);
+
+                 // 3. Evaluate the Deal
+                 if (attacker.bid >= requiredBid) {
+                     // Accept
+                     victim.compensationBalance += wta;
+                     const surplus = attacker.bid - wta;
+                     this.cumulativeSirqSurplus += surplus; // CPO keeps surplus
+
+                     this.addLog(state, `🤝 DEAL: ${attacker.type} bought out ${victim.type} for $${attacker.bid.toFixed(0)}`);
+                     this.cumulativePreemptions++;
+
+                     this.performSwap(state, bestTargetCharger, attacker);
+                 } else {
+                     // Reject
+                     // Only log periodically or if bid is reasonably close to avoid spamming?
+                     // Prompt request: Log: "⛔ REJECTED..."
+                     // I will log it.
+                     // To avoid spam, maybe only log if it hasn't been logged recently for this pair?
+                     // Or just log.
+                     // For now, let's log it but maybe we should check if the attacker actually *wants* to bid?
+                     // In SIRQ, the agent's bid is their WTP. They auto-bid.
+                     this.addLog(state, `⛔ REJECTED: ${victim.type} refused buyout (Bid $${attacker.bid.toFixed(0)} < Req $${requiredBid.toFixed(0)})`);
+                 }
             }
         }
     }
