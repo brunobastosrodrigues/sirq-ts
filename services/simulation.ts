@@ -20,6 +20,10 @@ export class SimulationEngine {
   cumulativePreemptions: number;
   allWaitTimes: number[]; // For Gini
 
+  // Energy & Demand Tracking
+  fifoCumulativeEnergy: number;
+  sirqCumulativeEnergy: number;
+
   constructor(config: SimulationConfig) {
     this.config = config;
     this.tickCount = 0;
@@ -32,6 +36,9 @@ export class SimulationEngine {
     this.cumulativeSirqSurplus = 0;
     this.cumulativePreemptions = 0;
     this.allWaitTimes = [];
+
+    this.fifoCumulativeEnergy = 0;
+    this.sirqCumulativeEnergy = 0;
     
     this.fifoState = this.initializeState('FIFO');
     this.sirqState = this.initializeState('SIRQ');
@@ -84,9 +91,16 @@ export class SimulationEngine {
       queue: [],
       processedCount: 0,
       balkedCount: 0,
+      balkedPrice: 0,
+      balkedWait: 0,
       revenue: 0,
       currentPrice: this.config.baseGridPrice,
       recentLogs: [],
+
+      slaViolations: 0,
+      currentGridLoad: 0,
+      peakGridLoad: 0,
+
       avgWaitTime: 0,
       // Granular
       avgWaitTimeCritical: 0,
@@ -168,7 +182,17 @@ export class SimulationEngine {
     const utilization = busyChargers / state.chargers.length;
     const queueFactor = Math.min(state.queue.length / (state.chargers.length * 2), 1.0);
 
-    let surgeMultiplier = 1 + (utilization * this.config.surgeSensitivity) + (queueFactor * this.config.surgeSensitivity);
+    // Feature 5: Price-Responsive Demand (VPP)
+    let gridFactor = 0;
+    if (this.config.gridConnectionLimit > 0) {
+        const gridStressIndex = state.currentGridLoad / this.config.gridConnectionLimit;
+        // Simple linear factor: if Load > 80%, start increasing price aggressively
+        if (gridStressIndex > 0.8) {
+             gridFactor = (gridStressIndex - 0.8) * 2.0; // scales 0 to 0.4+
+        }
+    }
+
+    let surgeMultiplier = 1 + (utilization * this.config.surgeSensitivity) + (queueFactor * this.config.surgeSensitivity) + gridFactor;
     let price = this.config.baseGridPrice * surgeMultiplier;
     
     if (price > this.config.maxPriceCap) price = this.config.maxPriceCap;
@@ -213,6 +237,9 @@ export class SimulationEngine {
   private processStation(state: StationState, newAgent: Agent | null): MicroDataPoint[] {
     const microUpdates: MicroDataPoint[] = [];
 
+    // Feature 4: Grid Impact & Load Profiling
+    let instantaneousLoad = 0;
+
     // 1. Update Pricing
     this.updatePrice(state);
 
@@ -221,6 +248,7 @@ export class SimulationEngine {
       const agent = { ...newAgent };
       if (state.currentPrice > agent.maxPriceTolerance && !agent.hasReservation) {
         state.balkedCount++;
+        state.balkedPrice++; // Feature 3: Lost Demand Segmentation
         
         // Count failure based on strategy
         if (agent.type === AgentType.CRITICAL) {
@@ -242,8 +270,28 @@ export class SimulationEngine {
     // 3. Queue Management
     state.queue = state.queue.filter(a => {
         const waited = this.tickCount - a.arrivalTime;
+
+        // Feature 2: Fleet SLA Monitor
+        if (a.type === AgentType.CRITICAL && waited > 15 && !a.hasReservation) {
+             // We just count violations, we don't necessarily kick them unless they hit patience
+             // However, checking violations every tick might overcount?
+             // The request says "trigger a violation event whenever a CRITICAL agent waits longer than ... 15 mins".
+             // If we count 1 per tick, it's cumulative duration.
+             // Let's assume we count it once when they cross the threshold? Or just number of people currently violating?
+             // "SLA Violations counter". Let's assume it's a cumulative event counter.
+             // To avoid double counting, we might need a flag on the agent.
+             // But simpler: just count # of agents currently violating SLA in the queue.
+             // Or actually, the request says "Contract Health ... based on violation rate".
+             // Let's count +1 if `waited === 15`.
+             if (waited === 15) {
+                 state.slaViolations++;
+                 this.addLog(state, `SLA WARN: Critical agent wait > 15m`);
+             }
+        }
+
         if (waited > a.patience && !a.hasReservation) {
             state.balkedCount++;
+            state.balkedWait++; // Feature 3
             
             // Count failure based on strategy
             if (a.type === AgentType.CRITICAL) {
@@ -326,9 +374,15 @@ export class SimulationEngine {
              this.config.chargerPower
          );
          
+         instantaneousLoad += currentRateKw;
+
          const kwhPerTick = currentRateKw / 60;
          charger.currentAgent.energyDelivered += kwhPerTick;
          
+         // Accumulate energy delivered globally for Cost analysis
+         if (state.strategy === 'FIFO') this.fifoCumulativeEnergy += kwhPerTick;
+         else this.sirqCumulativeEnergy += kwhPerTick;
+
          const remainingKwh = this.config.batteryCapacity - charger.currentAgent.energyDelivered;
          charger.timeRemaining = (remainingKwh / kwhPerTick);
 
@@ -384,6 +438,12 @@ export class SimulationEngine {
         }
       }
     });
+
+    // Update Grid Load Stats
+    state.currentGridLoad = instantaneousLoad;
+    if (instantaneousLoad > state.peakGridLoad) {
+        state.peakGridLoad = instantaneousLoad;
+    }
 
     return microUpdates;
   }
@@ -464,6 +524,13 @@ export class SimulationEngine {
         ? (this.sirqCumulativeCriticalFailures / this.sirqCumulativeCriticalArrivals)
         : 0;
 
+    // Feature 1: Financial Calculations
+    const fifoEnergyCost = this.fifoCumulativeEnergy * this.config.electricityCostPerKwh;
+    const sirqEnergyCost = this.sirqCumulativeEnergy * this.config.electricityCostPerKwh;
+
+    const fifoDemandPenalty = this.fifoState.peakGridLoad * this.config.peakDemandCharge;
+    const sirqDemandPenalty = this.sirqState.peakGridLoad * this.config.peakDemandCharge;
+
     return {
         fifo: this.fifoState,
         sirq: this.sirqState,
@@ -474,8 +541,18 @@ export class SimulationEngine {
             tick: this.tickCount,
             fifoRevenue: this.fifoState.revenue,
             sirqRevenue: this.sirqState.revenue,
+
+            fifoEnergyCost,
+            sirqEnergyCost,
+            fifoDemandPenalty,
+            sirqDemandPenalty,
+
             fifoBalked: this.fifoState.balkedCount,
             sirqBalked: this.sirqState.balkedCount,
+            fifoBalkedPrice: this.fifoState.balkedPrice,
+            sirqBalkedPrice: this.sirqState.balkedPrice,
+            fifoBalkedWait: this.fifoState.balkedWait,
+            sirqBalkedWait: this.sirqState.balkedWait,
             
             fifoWaitCritical: this.fifoState.avgWaitTimeCritical,
             sirqWaitCritical: this.sirqState.avgWaitTimeCritical,
@@ -483,10 +560,16 @@ export class SimulationEngine {
             // New Split Metrics
             fifoFailureRate,
             sirqFailureRate,
+
+            fifoSlaViolations: this.fifoState.slaViolations,
+            sirqSlaViolations: this.sirqState.slaViolations,
             
             fifoWaitEconomy: this.fifoState.avgWaitTimeEconomy,
             sirqWaitEconomy: this.sirqState.avgWaitTimeEconomy,
             
+            fifoGridLoad: this.fifoState.currentGridLoad,
+            sirqGridLoad: this.sirqState.currentGridLoad,
+
             price: this.fifoState.currentPrice,
             utilization: utilization,
             queueLength: this.sirqState.queue.length,

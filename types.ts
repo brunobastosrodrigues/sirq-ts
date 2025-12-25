@@ -40,9 +40,16 @@ export interface StationState {
   queue: Agent[];
   processedCount: number;
   balkedCount: number;
+  balkedPrice: number; // Breakdown of balked
+  balkedWait: number;  // Breakdown of balked
   revenue: number;
   currentPrice: number; // $/kWh
   recentLogs: string[]; // For Explainability: text log of events
+
+  // Operational Metrics
+  slaViolations: number;
+  currentGridLoad: number; // kW
+  peakGridLoad: number; // kW
   
   // Granular Stats for RQs
   avgWaitTime: number;
@@ -63,9 +70,14 @@ export interface SimulationConfig {
   // Economics
   baseGridPrice: number; // $/kWh
   baseServiceFee: number; // $
+  electricityCostPerKwh: number; // Base energy cost to CPO
+  peakDemandCharge: number; // $/kW for peak load
   auctionIncrement: number; // $
   preemptionPremium: number; // Multiplier (e.g. 1.2)
   
+  // Grid Constraints
+  gridConnectionLimit: number; // Physical limit (kW)
+
   // Smart Pricing
   smartPricing: boolean;
   surgeSensitivity: number; // 0.5
@@ -91,11 +103,20 @@ export interface SimulationConfig {
 
 export interface HistoricalDataPoint {
   tick: number;
-  // Efficiency
+  // Efficiency & Financial
   fifoRevenue: number;
   sirqRevenue: number;
+  fifoEnergyCost: number;
+  sirqEnergyCost: number;
+  fifoDemandPenalty: number;
+  sirqDemandPenalty: number;
+
   fifoBalked: number;
   sirqBalked: number;
+  fifoBalkedPrice: number;
+  sirqBalkedPrice: number;
+  fifoBalkedWait: number;
+  sirqBalkedWait: number;
   
   // Reliability
   fifoWaitCritical: number;
@@ -105,8 +126,15 @@ export interface HistoricalDataPoint {
   fifoFailureRate: number; 
   sirqFailureRate: number;
 
+  fifoSlaViolations: number;
+  sirqSlaViolations: number;
+
   preemptions: number; // Count of auction swaps
   
+  // Grid
+  fifoGridLoad: number;
+  sirqGridLoad: number;
+
   // Pricing & Sensitivity
   price: number;
   utilization: number; // 0.0 to 1.0
