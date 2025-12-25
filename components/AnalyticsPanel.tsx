@@ -1,15 +1,16 @@
 import React, { useState, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar, AreaChart, Area, ScatterChart, Scatter, ZAxis, ComposedChart
+  BarChart, Bar, AreaChart, Area, ScatterChart, Scatter, ZAxis, ComposedChart, ReferenceLine
 } from 'recharts';
-import { HistoricalDataPoint, MicroDataPoint, AgentType } from '../types';
+import { HistoricalDataPoint, MicroDataPoint, AgentType, SimulationConfig } from '../types';
 import { clsx } from 'clsx';
 import { Download } from 'lucide-react';
 
 interface AnalyticsPanelProps {
   data: HistoricalDataPoint[];
   microData: MicroDataPoint[];
+  config: SimulationConfig;
 }
 
 // Reusable Chart Container with Save Functionality
@@ -77,7 +78,7 @@ const ChartContainer: React.FC<{ title: string; subtitle?: string; children: Rea
     );
 };
 
-export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData }) => {
+export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData, config }) => {
   const [activeTab, setActiveTab] = useState<'efficiency' | 'financial' | 'reliability' | 'equity' | 'grid' | 'sensitivity'>('efficiency');
 
   // Sub-sample data for performance
@@ -279,7 +280,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
 
   const renderGrid = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ChartContainer title="Real-Time Grid Load" subtitle="Total Power Draw (kW)" id="chart-grid-load">
+        <ChartContainer title="Grid Impact Analysis" subtitle="Load vs Transformer Limit (kW)" id="chart-grid-load">
              <AreaChart data={displayData} {...commonChartProps}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tick" label={{ value: 'Time', position: 'insideBottom', offset: -10 }} />
@@ -288,6 +289,9 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                 <Legend verticalAlign="top" height={36} />
                 <Area type="monotone" dataKey="sirqGridLoad" name="SIRQ Load" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.2} />
                 <Area type="monotone" dataKey="fifoGridLoad" name="FIFO Load" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+                {config.enableGridAwareness && (
+                    <ReferenceLine y={config.transformerLimit} label="Limit" stroke="red" strokeDasharray="3 3" />
+                )}
              </AreaChart>
         </ChartContainer>
     </div>

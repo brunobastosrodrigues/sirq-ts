@@ -18,6 +18,11 @@ const DEFAULT_CONFIG: SimulationConfig = {
   electricityCostPerKwh: 0.15,
   peakDemandCharge: 15.00,
   gridConnectionLimit: 2000.0,
+  // Grid Awareness
+  enableGridAwareness: false,
+  transformerLimit: 500.0,
+  gridStressSensitivity: 2.0,
+
   auctionIncrement: 5.0,
   preemptionPremium: 1.2,
   // Pricing
@@ -412,7 +417,7 @@ export default function App() {
             {/* ANALYTICS TAB */}
             {activeTab === 'analytics' && (
                <div className="h-full bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                   <AnalyticsPanel data={history} microData={microHistory} />
+                   <AnalyticsPanel data={history} microData={microHistory} config={config} />
                </div>
             )}
 
@@ -427,6 +432,41 @@ export default function App() {
                          {/* Infrastructure */}
                          <div className="space-y-6">
                             <h3 className="font-semibold text-slate-500 dark:text-slate-400 uppercase text-xs tracking-wider">Infrastructure</h3>
+
+                            {/* Grid Awareness (VPP) */}
+                             <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-900/30">
+                                 <div className="flex items-center justify-between mb-4">
+                                     <div>
+                                         <span className="block text-sm font-bold text-amber-900 dark:text-amber-400">Grid-Aware Pricing (VPP)</span>
+                                         <span className="block text-[10px] text-amber-700 dark:text-amber-500">Throttle demand via price when load is high</span>
+                                     </div>
+                                     <button
+                                        onClick={() => setConfig({...config, enableGridAwareness: !config.enableGridAwareness})}
+                                        className={clsx("w-9 h-5 rounded-full transition-colors relative", config.enableGridAwareness ? "bg-amber-600" : "bg-slate-300 dark:bg-slate-600")}
+                                     >
+                                         <span className={clsx("absolute top-1 w-3 h-3 bg-white rounded-full transition-transform", config.enableGridAwareness ? "left-5" : "left-1")} />
+                                     </button>
+                                 </div>
+
+                                 {config.enableGridAwareness && (
+                                     <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div>
+                                            <label className="block text-xs font-medium text-amber-800 dark:text-amber-300 mb-1">Transformer Limit (Physical)</label>
+                                            <input
+                                                type="range" min="100" max="1000" step="50"
+                                                value={config.transformerLimit}
+                                                onChange={(e) => setConfig({...config, transformerLimit: parseInt(e.target.value)})}
+                                                className="w-full h-2 bg-amber-200 dark:bg-amber-800 rounded-lg appearance-none cursor-pointer accent-amber-600"
+                                            />
+                                            <div className="flex justify-between text-[10px] mt-1">
+                                                <span className="text-amber-600 dark:text-amber-500">100kW (Brownout)</span>
+                                                <span className="font-bold text-amber-800 dark:text-amber-200">{config.transformerLimit}kW</span>
+                                            </div>
+                                        </div>
+                                     </div>
+                                 )}
+                             </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Chargers per Station</label>
                                 <input 

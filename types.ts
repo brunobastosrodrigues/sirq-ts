@@ -78,6 +78,11 @@ export interface SimulationConfig {
   // Grid Constraints
   gridConnectionLimit: number; // Physical limit (kW)
 
+  // VPP / Grid Awareness
+  enableGridAwareness: boolean;
+  transformerLimit: number;
+  gridStressSensitivity: number;
+
   // Smart Pricing
   smartPricing: boolean;
   surgeSensitivity: number; // 0.5
