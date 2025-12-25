@@ -76,6 +76,10 @@ export interface SimulationConfig {
   probStandard: number;
   probEconomy: number;
   
+  // Temporal Dynamics
+  enableRushHours: boolean;
+  rushHourMultiplier: number;
+
   // Profiles (Editable)
   profiles: Record<AgentType, AgentProfile>;
 

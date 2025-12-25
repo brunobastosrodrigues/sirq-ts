@@ -25,6 +25,8 @@ const DEFAULT_CONFIG: SimulationConfig = {
   probCritical: 0.20,
   probStandard: 0.60,
   probEconomy: 0.20,
+  enableRushHours: true,
+  rushHourMultiplier: 2.5,
   // Sim
   numChargers: 4,
   arrivalRate: 0.10, // ~1 truck every 10 ticks
@@ -58,6 +60,8 @@ export default function App() {
   const [sirqState, setSirqState] = useState<StationState | null>(null);
   const [history, setHistory] = useState<HistoricalDataPoint[]>([]);
   const [microHistory, setMicroHistory] = useState<MicroDataPoint[]>([]);
+  const [currentSimTime, setCurrentSimTime] = useState<number>(0);
+  const [trafficMultiplier, setTrafficMultiplier] = useState<number>(1.0);
   
   // Animation Control Refs
   const requestRef = useRef<number | null>(null);
@@ -84,6 +88,8 @@ export default function App() {
     const result = engineRef.current.tick(); // Initial tick
     setFifoState(result.fifo);
     setSirqState(result.sirq);
+    setCurrentSimTime(result.simTime);
+    setTrafficMultiplier(result.trafficMultiplier);
     setHistory([]);
     setMicroHistory([]);
   }, [config]);
@@ -124,6 +130,8 @@ export default function App() {
     if (lastResult) {
         setFifoState({ ...lastResult.fifo }); // Spread to trigger re-render
         setSirqState({ ...lastResult.sirq });
+        setCurrentSimTime(lastResult.simTime);
+        setTrafficMultiplier(lastResult.trafficMultiplier);
         setHistory(prev => [...prev, lastResult!.historical].slice(-500)); // Keep last 500
         
         // Keep last 1000 micro data points to avoid memory explosion but allow scatter plots
@@ -367,9 +375,22 @@ export default function App() {
                 </button>
                 </div>
                 <div className="w-px h-8 bg-slate-300 dark:bg-slate-600 mx-1" />
-                <div className="flex flex-col text-xs font-medium text-slate-600 dark:text-slate-400 min-w-[100px]">
-                    <span className="tabular-nums text-sm text-slate-900 dark:text-white font-bold">Tick: {engineRef.current?.tickCount || 0}</span>
-                    <span className="tabular-nums text-slate-500 dark:text-slate-500">Sim Time: {((engineRef.current?.tickCount || 0) / 60).toFixed(1)}h</span>
+                <div className="flex flex-col min-w-[120px]">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xl font-bold font-mono tabular-nums text-slate-900 dark:text-white">
+                           {String(Math.floor(currentSimTime / 60)).padStart(2, '0')}:{String(Math.floor(currentSimTime % 60)).padStart(2, '0')}
+                        </span>
+                        {/* Traffic Intensity Indicator */}
+                        {config.enableRushHours && (
+                             <div className="flex flex-col gap-0.5" title={`Traffic Intensity: ${trafficMultiplier.toFixed(1)}x`}>
+                                 <div className={clsx("w-2 h-2 rounded-full", trafficMultiplier > 1.8 ? "bg-red-500 animate-pulse" : trafficMultiplier > 1.2 ? "bg-amber-500" : "bg-emerald-500")} />
+                             </div>
+                        )}
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                        <span>Tick: {engineRef.current?.tickCount || 0}</span>
+                        {trafficMultiplier > 1.1 && <span className="text-amber-600 dark:text-amber-400 font-bold uppercase">Rush Hour</span>}
+                    </div>
                 </div>
             </div>
         )}
@@ -435,7 +456,7 @@ export default function App() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Traffic (Arrival Rate)</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Base Traffic (Arrival Rate)</label>
                                 <input 
                                     type="range" min="1" max="50" 
                                     value={config.arrivalRate * 100}
@@ -444,6 +465,20 @@ export default function App() {
                                 />
                                 <div className="text-right text-xs text-indigo-600 dark:text-indigo-400 font-bold mt-1">{(config.arrivalRate * 100).toFixed(1)}% / min</div>
                             </div>
+
+                             {/* Rush Hour Toggle */}
+                             <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 mt-4">
+                                 <div>
+                                     <span className="block text-sm font-medium text-slate-900 dark:text-white">Enable Rush Hours</span>
+                                     <span className="block text-[10px] text-slate-500 dark:text-slate-400">Peaks at 08:00 & 17:30</span>
+                                 </div>
+                                 <button
+                                    onClick={() => setConfig({...config, enableRushHours: !config.enableRushHours})}
+                                    className={clsx("w-9 h-5 rounded-full transition-colors relative", config.enableRushHours ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-600")}
+                                 >
+                                     <span className={clsx("absolute top-1 w-3 h-3 bg-white rounded-full transition-transform", config.enableRushHours ? "left-5" : "left-1")} />
+                                 </button>
+                             </div>
                          </div>
 
                          {/* Economics */}
