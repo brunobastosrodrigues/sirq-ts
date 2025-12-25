@@ -93,6 +93,13 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ title, state
             <span className="flex items-center gap-1"><DollarSign size={12}/> Rev: ${(state.revenue / 1000).toFixed(1)}k</span>
             <span className="flex items-center gap-1"><Clock size={12}/> Wait: {state.avgWaitTime.toFixed(0)}m</span>
             <span className="flex items-center gap-1 text-red-500 dark:text-red-400">Lost: {state.balkedCount}</span>
+            {/* Feature 2: SLA Monitor */}
+            <span className={clsx(
+                "flex items-center gap-1 font-bold",
+                state.slaViolations === 0 ? "text-green-500" : (state.slaViolations < 5 ? "text-yellow-500" : "text-red-500")
+            )}>
+                 <AlertTriangle size={12}/> SLA: {state.slaViolations}
+            </span>
           </div>
         </div>
         <div className="text-right">

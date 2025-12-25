@@ -78,7 +78,7 @@ const ChartContainer: React.FC<{ title: string; subtitle?: string; children: Rea
 };
 
 export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData }) => {
-  const [activeTab, setActiveTab] = useState<'efficiency' | 'reliability' | 'equity' | 'sensitivity'>('efficiency');
+  const [activeTab, setActiveTab] = useState<'efficiency' | 'financial' | 'reliability' | 'equity' | 'grid' | 'sensitivity'>('efficiency');
 
   // Sub-sample data for performance
   const displayData = data.length > 200 ? data.filter((_, i) => i % 5 === 0) : data;
@@ -159,6 +159,35 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
                 <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Area type="step" dataKey="queueLength" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} name="Vehicles in Queue" />
              </AreaChart>
+        </ChartContainer>
+    </div>
+  );
+
+  const renderFinancial = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ChartContainer title="Financial Performance" subtitle="Revenue vs Costs vs Penalties (SIRQ)" id="chart-fin-perf">
+            <BarChart data={displayData} {...commonChartProps}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="tick" />
+                <YAxis width={60} label={{ value: '$', angle: -90, position: 'insideLeft', offset: 0 }} />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                <Legend verticalAlign="top" height={36} />
+                <Bar dataKey="sirqRevenue" name="Revenue" stackId="a" fill="#4f46e5" />
+                <Bar dataKey="sirqEnergyCost" name="Energy Cost" stackId="b" fill="#f59e0b" />
+                <Bar dataKey="sirqDemandPenalty" name="Demand Penalty" stackId="b" fill="#ef4444" />
+            </BarChart>
+        </ChartContainer>
+
+        <ChartContainer title="Lost Revenue (Churn)" subtitle="Balking Reasons (SIRQ)" id="chart-churn">
+            <AreaChart data={displayData} {...commonChartProps}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="tick" />
+                <YAxis width={60} label={{ value: 'Vehicles', angle: -90, position: 'insideLeft', offset: 0 }} />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                <Legend verticalAlign="top" height={36} />
+                <Area type="monotone" dataKey="sirqBalkedPrice" name="Price Balks" stackId="1" stroke="#f97316" fill="#f97316" />
+                <Area type="monotone" dataKey="sirqBalkedWait" name="Wait Balks" stackId="1" stroke="#64748b" fill="#64748b" />
+            </AreaChart>
         </ChartContainer>
     </div>
   );
@@ -248,6 +277,22 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
     </div>
   );
 
+  const renderGrid = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ChartContainer title="Real-Time Grid Load" subtitle="Total Power Draw (kW)" id="chart-grid-load">
+             <AreaChart data={displayData} {...commonChartProps}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="tick" label={{ value: 'Time', position: 'insideBottom', offset: -10 }} />
+                <YAxis width={60} label={{ value: 'Load (kW)', angle: -90, position: 'insideLeft', offset: 0 }} />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                <Legend verticalAlign="top" height={36} />
+                <Area type="monotone" dataKey="sirqGridLoad" name="SIRQ Load" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.2} />
+                <Area type="monotone" dataKey="fifoGridLoad" name="FIFO Load" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+             </AreaChart>
+        </ChartContainer>
+    </div>
+  );
+
   const renderSensitivity = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ChartContainer title="Sensitivity: Load vs Wait vs Price" subtitle="Bubble Size = Critical Wait Time" id="chart-heat">
@@ -280,9 +325,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
        <div className="flex gap-2 p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10 shadow-sm overflow-x-auto transition-colors">
           {[
               { id: 'efficiency', label: '1. Efficiency' },
-              { id: 'reliability', label: '2. Reliability (Critical)' },
-              { id: 'equity', label: '3. Equity (Policy)' },
-              { id: 'sensitivity', label: '4. Sensitivity Lab' }
+              { id: 'financial', label: '2. Financial' },
+              { id: 'reliability', label: '3. Reliability (Critical)' },
+              { id: 'equity', label: '4. Equity (Policy)' },
+              { id: 'grid', label: '5. Grid & Power' },
+              { id: 'sensitivity', label: '6. Sensitivity Lab' }
           ].map(tab => (
               <button 
                 key={tab.id}
@@ -301,8 +348,10 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData 
        
        <div className="flex-1 overflow-y-auto p-6 pb-20">
            {activeTab === 'efficiency' && renderEfficiency()}
+           {activeTab === 'financial' && renderFinancial()}
            {activeTab === 'reliability' && renderReliability()}
            {activeTab === 'equity' && renderEquity()}
+           {activeTab === 'grid' && renderGrid()}
            {activeTab === 'sensitivity' && renderSensitivity()}
        </div>
     </div>

@@ -15,6 +15,9 @@ const DEFAULT_CONFIG: SimulationConfig = {
   // Economics
   baseGridPrice: 0.50,
   baseServiceFee: 10.0,
+  electricityCostPerKwh: 0.15,
+  peakDemandCharge: 15.00,
+  gridConnectionLimit: 2000.0,
   auctionIncrement: 5.0,
   preemptionPremium: 1.2,
   // Pricing
