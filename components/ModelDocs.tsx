@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ArrowRight } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface ModelDocsProps {
   onClose: () => void;

@@ -405,6 +405,60 @@ def fig_sensitivity_combined():
     print("Saved sensitivity_combined.pdf")
 
 
+def fig_edf_correlation_sensitivity():
+    """
+    Figure 12: EDF performance under different urgency-patience relationships.
+    Shows that EDF fails when urgency and patience are inversely correlated
+    but works well when they're positively correlated.
+    """
+    fig, ax = plt.subplots(figsize=(3.5, 2.5))
+
+    # Data from correlation sensitivity experiments (Table in paper)
+    correlations = ['Inverse\n(Baseline)', 'No\nCorrelation', 'Positive\nCorrelation']
+    agent_types = ['Critical', 'Standard', 'Economy']
+
+    # Percent change vs FIFO for EDF under each correlation assumption
+    data = {
+        'Critical': [0.8, -37.5, -54.6],
+        'Standard': [-11.8, -18.7, -13.1],
+        'Economy': [-38.9, 5.1, 48.2]
+    }
+
+    x = np.arange(len(correlations))
+    width = 0.25
+
+    colors = {'Critical': COLORS['CRITICAL'], 'Standard': COLORS['STANDARD'], 'Economy': COLORS['ECONOMY']}
+
+    for i, agent in enumerate(agent_types):
+        bars = ax.bar(x + (i - 1) * width, data[agent], width,
+                      label=agent, color=colors[agent],
+                      edgecolor='black', linewidth=0.5, alpha=0.85)
+
+    ax.axhline(y=0, color='black', linewidth=0.8, linestyle='-')
+    ax.set_xticks(x)
+    ax.set_xticklabels(correlations, fontsize=7)
+    ax.set_ylabel('Wait Time Change vs FIFO (%)', fontsize=8)
+    ax.set_xlabel('Urgency-Patience Relationship', fontsize=8)
+    ax.legend(loc='lower left', fontsize=6, framealpha=0.7)
+    ax.tick_params(axis='both', labelsize=7)
+
+    # Annotate the key finding - small text
+    ax.annotate('EDF fails here', xy=(0, 0.8), xytext=(0.3, 25),
+                fontsize=6, ha='center', color='red',
+                arrowprops=dict(arrowstyle='->', color='red', lw=0.8))
+    ax.annotate('EDF works here', xy=(2, -54.6), xytext=(1.7, -40),
+                fontsize=6, ha='center', color='green',
+                arrowprops=dict(arrowstyle='->', color='green', lw=0.8))
+
+    ax.set_ylim(-70, 60)
+
+    plt.tight_layout()
+    plt.savefig(OUTPUT_DIR / 'sensitivity_analysis.pdf')
+    plt.savefig(OUTPUT_DIR / 'sensitivity_analysis.png')
+    plt.close()
+    print("Saved sensitivity_analysis.pdf")
+
+
 def generate_all():
     """Generate all wow-effect figures."""
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -415,6 +469,7 @@ def generate_all():
     fig_hero_comparison()
     fig_edf_paradox_explained()
     fig_sensitivity_combined()
+    fig_edf_correlation_sensitivity()
 
     print("=" * 50)
     print(f"All figures saved to {OUTPUT_DIR}")

@@ -1,4 +1,5 @@
-import { Agent, AgentType, Charger, StationState, SimulationConfig, HistoricalDataPoint, MicroDataPoint, SimulationSnapshot } from '../types';
+import { Agent, AgentType, Charger, StationState, SimulationConfig, HistoricalDataPoint, MicroDataPoint, SimulationSnapshot, StrategyType } from '../types';
+import { getArrivalProbability } from './epflDataLoader';
 
 // Helper to generate random ID
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -6,6 +7,8 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 export class SimulationEngine {
   fifoState: StationState;
   sirqState: StationState;
+  postedPriceState: StationState;
+  priorityQueueState: StationState;
   config: SimulationConfig;
   tickCount: number;
   
@@ -16,6 +19,12 @@ export class SimulationEngine {
   sirqCumulativeCriticalArrivals: number;
   sirqCumulativeCriticalFailures: number;
 
+  postedPriceCumulativeCriticalArrivals: number;
+  postedPriceCumulativeCriticalFailures: number;
+
+  priorityQueueCumulativeCriticalArrivals: number;
+  priorityQueueCumulativeCriticalFailures: number;
+
   cumulativeSirqSurplus: number; // Subsidy Pool
   cumulativePreemptions: number;
   allWaitTimes: number[]; // For Gini
@@ -23,6 +32,8 @@ export class SimulationEngine {
   // Energy & Demand Tracking
   fifoCumulativeEnergy: number;
   sirqCumulativeEnergy: number;
+  postedPriceCumulativeEnergy: number;
+  priorityQueueCumulativeEnergy: number;
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -32,6 +43,10 @@ export class SimulationEngine {
     this.fifoCumulativeCriticalFailures = 0;
     this.sirqCumulativeCriticalArrivals = 0;
     this.sirqCumulativeCriticalFailures = 0;
+    this.postedPriceCumulativeCriticalArrivals = 0;
+    this.postedPriceCumulativeCriticalFailures = 0;
+    this.priorityQueueCumulativeCriticalArrivals = 0;
+    this.priorityQueueCumulativeCriticalFailures = 0;
 
     this.cumulativeSirqSurplus = 0;
     this.cumulativePreemptions = 0;
@@ -39,9 +54,13 @@ export class SimulationEngine {
 
     this.fifoCumulativeEnergy = 0;
     this.sirqCumulativeEnergy = 0;
-    
+    this.postedPriceCumulativeEnergy = 0;
+    this.priorityQueueCumulativeEnergy = 0;
+
     this.fifoState = this.initializeState('FIFO');
     this.sirqState = this.initializeState('SIRQ');
+    this.postedPriceState = this.initializeState('POSTED_PRICE');
+    this.priorityQueueState = this.initializeState('PRIORITY_QUEUE');
   }
 
   // --- Snapshot / Restore Logic ---
@@ -51,11 +70,17 @@ export class SimulationEngine {
           // Deep copy states to prevent reference issues
           fifoState: JSON.parse(JSON.stringify(this.fifoState)),
           sirqState: JSON.parse(JSON.stringify(this.sirqState)),
-          
+          postedPriceState: JSON.parse(JSON.stringify(this.postedPriceState)),
+          priorityQueueState: JSON.parse(JSON.stringify(this.priorityQueueState)),
+
           fifoCumulativeCriticalArrivals: this.fifoCumulativeCriticalArrivals,
           fifoCumulativeCriticalFailures: this.fifoCumulativeCriticalFailures,
           sirqCumulativeCriticalArrivals: this.sirqCumulativeCriticalArrivals,
           sirqCumulativeCriticalFailures: this.sirqCumulativeCriticalFailures,
+          postedPriceCumulativeCriticalArrivals: this.postedPriceCumulativeCriticalArrivals,
+          postedPriceCumulativeCriticalFailures: this.postedPriceCumulativeCriticalFailures,
+          priorityQueueCumulativeCriticalArrivals: this.priorityQueueCumulativeCriticalArrivals,
+          priorityQueueCumulativeCriticalFailures: this.priorityQueueCumulativeCriticalFailures,
 
           cumulativeSirqSurplus: this.cumulativeSirqSurplus,
           cumulativePreemptions: this.cumulativePreemptions,
@@ -67,11 +92,17 @@ export class SimulationEngine {
       this.tickCount = snapshot.tickCount;
       this.fifoState = snapshot.fifoState;
       this.sirqState = snapshot.sirqState;
-      
+      this.postedPriceState = snapshot.postedPriceState;
+      this.priorityQueueState = snapshot.priorityQueueState;
+
       this.fifoCumulativeCriticalArrivals = snapshot.fifoCumulativeCriticalArrivals;
       this.fifoCumulativeCriticalFailures = snapshot.fifoCumulativeCriticalFailures;
       this.sirqCumulativeCriticalArrivals = snapshot.sirqCumulativeCriticalArrivals;
       this.sirqCumulativeCriticalFailures = snapshot.sirqCumulativeCriticalFailures;
+      this.postedPriceCumulativeCriticalArrivals = snapshot.postedPriceCumulativeCriticalArrivals;
+      this.postedPriceCumulativeCriticalFailures = snapshot.postedPriceCumulativeCriticalFailures;
+      this.priorityQueueCumulativeCriticalArrivals = snapshot.priorityQueueCumulativeCriticalArrivals;
+      this.priorityQueueCumulativeCriticalFailures = snapshot.priorityQueueCumulativeCriticalFailures;
 
       this.cumulativeSirqSurplus = snapshot.cumulativeSirqSurplus;
       this.cumulativePreemptions = snapshot.cumulativePreemptions;
@@ -79,7 +110,7 @@ export class SimulationEngine {
   }
   // --------------------------------
 
-  private initializeState(strategy: 'FIFO' | 'SIRQ'): StationState {
+  private initializeState(strategy: StrategyType): StationState {
     return {
       strategy,
       chargers: Array.from({ length: this.config.numChargers }, (_, i) => ({
@@ -122,9 +153,11 @@ export class SimulationEngine {
     
     if (rand < pCrit) {
         type = AgentType.CRITICAL;
-        // Increment global counters for both strategies
+        // Increment global counters for all strategies
         this.fifoCumulativeCriticalArrivals++;
         this.sirqCumulativeCriticalArrivals++;
+        this.postedPriceCumulativeCriticalArrivals++;
+        this.priorityQueueCumulativeCriticalArrivals++;
     } else if (rand < pCrit + pStd) {
         type = AgentType.STANDARD;
     } else {
@@ -235,7 +268,7 @@ export class SimulationEngine {
          }
     }
 
-    let surgeMultiplier = 1 + (utilization * this.config.surgeSensitivity) + (queueFactor * this.config.surgeSensitivity) + gridFactor;
+    const surgeMultiplier = 1 + (utilization * this.config.surgeSensitivity) + (queueFactor * this.config.surgeSensitivity) + gridFactor;
     let price = this.config.baseGridPrice * surgeMultiplier;
     
     if (price > this.config.maxPriceCap) price = this.config.maxPriceCap;
@@ -251,6 +284,24 @@ export class SimulationEngine {
     const expectedWaitMinutes = (queueLength / this.config.numChargers) * chargeDuration;
     const timeValue = (agent.vot / 60) * expectedWaitMinutes;
     return parseFloat((baseCost + timeValue).toFixed(2));
+  }
+
+  /**
+   * Vickrey (second-price) auction: winner pays the second-highest bid.
+   * Returns the second-highest bid from queue, or base cost if no other bidders.
+   */
+  private getSecondHighestBid(queue: Agent[], winnerBid: number): number {
+    // Get all bids except the winner's (in case of ties, we still find second-highest)
+    const otherBids = queue
+      .filter(a => !a.hasReservation) // Reservations don't participate in auction pricing
+      .map(a => a.bid)
+      .filter(bid => bid < winnerBid || queue.filter(a => a.bid === winnerBid).length > 1);
+
+    if (otherBids.length > 0) {
+      return Math.max(...otherBids);
+    }
+    // If no other bidders, winner pays base cost (reserve price)
+    return (this.config.baseGridPrice * this.config.batteryCapacity) + this.config.baseServiceFee;
   }
 
   private updateProfileStats(state: StationState, type: AgentType, waitTime: number) {
@@ -296,7 +347,9 @@ export class SimulationEngine {
         // Count failure based on strategy
         if (agent.type === AgentType.CRITICAL) {
              if (state.strategy === 'FIFO') this.fifoCumulativeCriticalFailures++;
-             else this.sirqCumulativeCriticalFailures++;
+             else if (state.strategy === 'SIRQ') this.sirqCumulativeCriticalFailures++;
+             else if (state.strategy === 'POSTED_PRICE') this.postedPriceCumulativeCriticalFailures++;
+             else if (state.strategy === 'PRIORITY_QUEUE') this.priorityQueueCumulativeCriticalFailures++;
         }
 
         if (state.strategy === 'SIRQ') { 
@@ -339,7 +392,9 @@ export class SimulationEngine {
             // Count failure based on strategy
             if (a.type === AgentType.CRITICAL) {
                 if (state.strategy === 'FIFO') this.fifoCumulativeCriticalFailures++;
-                else this.sirqCumulativeCriticalFailures++;
+                else if (state.strategy === 'SIRQ') this.sirqCumulativeCriticalFailures++;
+                else if (state.strategy === 'POSTED_PRICE') this.postedPriceCumulativeCriticalFailures++;
+                else if (state.strategy === 'PRIORITY_QUEUE') this.priorityQueueCumulativeCriticalFailures++;
             }
 
             this.addLog(state, `${a.type} agent left queue (Impatient)`);
@@ -348,6 +403,7 @@ export class SimulationEngine {
         return true;
     });
 
+    // Queue sorting based on strategy
     if (state.strategy === 'SIRQ') {
         state.queue.sort((a, b) => {
             // Priority 0: Preempted Agents (Highest Priority to avoid starvation)
@@ -362,7 +418,43 @@ export class SimulationEngine {
             // Priority 3: Arrival Time
             return a.arrivalTime - b.arrivalTime;
         });
+    } else if (state.strategy === 'POSTED_PRICE') {
+        // Posted-Price: Sort by agent type tier (Critical > Standard > Economy), then FIFO
+        // Agents pay fixed tier prices, no auction
+        const typePriority: Record<AgentType, number> = {
+            [AgentType.CRITICAL]: 0,
+            [AgentType.STANDARD]: 1,
+            [AgentType.ECONOMY]: 2
+        };
+        state.queue.sort((a, b) => {
+            // Reservations still get priority
+            if (a.hasReservation && !b.hasReservation) return -1;
+            if (!a.hasReservation && b.hasReservation) return 1;
+            // Then sort by type tier
+            const tierDiff = typePriority[a.type] - typePriority[b.type];
+            if (tierDiff !== 0) return tierDiff;
+            // Then FIFO
+            return a.arrivalTime - b.arrivalTime;
+        });
+    } else if (state.strategy === 'PRIORITY_QUEUE') {
+        // Priority Queue: Strict priority by type (like hospitals/airlines), no preemption
+        const typePriority: Record<AgentType, number> = {
+            [AgentType.CRITICAL]: 0,
+            [AgentType.STANDARD]: 1,
+            [AgentType.ECONOMY]: 2
+        };
+        state.queue.sort((a, b) => {
+            // Reservations still get priority
+            if (a.hasReservation && !b.hasReservation) return -1;
+            if (!a.hasReservation && b.hasReservation) return 1;
+            // Then strict type priority
+            const tierDiff = typePriority[a.type] - typePriority[b.type];
+            if (tierDiff !== 0) return tierDiff;
+            // Then FIFO within tier
+            return a.arrivalTime - b.arrivalTime;
+        });
     } else {
+        // FIFO: Simple arrival time ordering
         state.queue.sort((a, b) => a.arrivalTime - b.arrivalTime);
     }
 
@@ -373,7 +465,8 @@ export class SimulationEngine {
         let minBid = Infinity;
         let hasFreeSpot = false;
 
-        state.chargers.forEach(c => {
+        // Use for...of instead of forEach for proper TypeScript control flow analysis
+        for (const c of state.chargers) {
             if (c.status === 'idle') {
                 hasFreeSpot = true;
             } else if (c.status === 'busy' && c.currentAgent) {
@@ -391,20 +484,22 @@ export class SimulationEngine {
                     }
                 }
             }
-        });
+        }
 
         if (!hasFreeSpot && lowestBidCharger && lowestBidCharger.currentAgent) {
+            const targetCharger = lowestBidCharger;
+            // Non-null assertion safe here due to condition check above
+            const incumbentAgent = targetCharger.currentAgent!;
             let shouldSwap = false;
-            
+
             if (topCandidate.hasReservation) {
                 shouldSwap = true;
-                this.addLog(state, `RESERVATION: ${topCandidate.type} claimed spot from ${lowestBidCharger.currentAgent.type}`);
+                this.addLog(state, `RESERVATION: ${topCandidate.type} claimed spot from ${incumbentAgent.type}`);
             } else {
                 // Interactive Negotiation Logic
-                const victim = lowestBidCharger.currentAgent;
-                const remainingKwh = this.config.batteryCapacity - victim.energyDelivered;
+                const remainingKwh = this.config.batteryCapacity - incumbentAgent.energyDelivered;
                 const valueOfCharge = remainingKwh * state.currentPrice;
-                const wta = valueOfCharge + this.getInconvenienceCost(victim.type);
+                const wta = valueOfCharge + this.getInconvenienceCost(incumbentAgent.type);
 
                 const cpoMargin = 0.10;
                 const requiredBid = wta * (1 + cpoMargin);
@@ -413,7 +508,7 @@ export class SimulationEngine {
                     shouldSwap = true;
 
                     // Financial Settlement
-                    victim.compensationBalance += wta;
+                    incumbentAgent.compensationBalance += wta;
                     const surplus = topCandidate.bid - wta;
                     // Note: 'revenue' normally tracks charging fees.
                     // This surplus is essentially a "brokerage fee" + "energy pre-payment"??
@@ -421,22 +516,26 @@ export class SimulationEngine {
                     // We add this to the station revenue.
                     state.revenue += surplus;
 
-                    this.addLog(state, `🤝 DEAL: ${topCandidate.type} bought out ${victim.type} for $${topCandidate.bid.toFixed(2)}`);
+                    this.addLog(state, `🤝 DEAL: ${topCandidate.type} bought out ${incumbentAgent.type} for $${topCandidate.bid.toFixed(2)}`);
                     this.cumulativePreemptions++;
                 } else {
-                    this.addLog(state, `⛔ REJECTED: ${victim.type} refused buyout (Bid $${topCandidate.bid.toFixed(2)} < Required $${requiredBid.toFixed(2)})`);
+                    this.addLog(state, `⛔ REJECTED: ${incumbentAgent.type} refused buyout (Bid $${topCandidate.bid.toFixed(2)} < Required $${requiredBid.toFixed(2)})`);
                 }
             }
 
             if (shouldSwap) {
-                const evictedAgent = lowestBidCharger.currentAgent;
-                evictedAgent.status = 'preempted';
-                evictedAgent.preemptedCount++;
-                state.queue.push(evictedAgent); 
-                state.queue.shift(); 
-                lowestBidCharger.currentAgent = topCandidate;
-                lowestBidCharger.currentAgent.status = 'charging';
-                lowestBidCharger.currentAgent.enteredChargingAt = this.tickCount;
+                incumbentAgent.status = 'preempted';
+                incumbentAgent.preemptedCount++;
+                state.queue.push(incumbentAgent);
+                state.queue.shift();
+                targetCharger.currentAgent = topCandidate;
+                targetCharger.currentAgent.status = 'charging';
+                targetCharger.currentAgent.enteredChargingAt = this.tickCount;
+
+                // Vickrey auction: set clearing price to second-highest bid
+                if (!topCandidate.hasReservation) {
+                    targetCharger.currentAgent.clearingPrice = this.getSecondHighestBid(state.queue, topCandidate.bid);
+                }
             }
         }
     }
@@ -458,7 +557,9 @@ export class SimulationEngine {
          
          // Accumulate energy delivered globally for Cost analysis
          if (state.strategy === 'FIFO') this.fifoCumulativeEnergy += kwhPerTick;
-         else this.sirqCumulativeEnergy += kwhPerTick;
+         else if (state.strategy === 'SIRQ') this.sirqCumulativeEnergy += kwhPerTick;
+         else if (state.strategy === 'POSTED_PRICE') this.postedPriceCumulativeEnergy += kwhPerTick;
+         else if (state.strategy === 'PRIORITY_QUEUE') this.priorityQueueCumulativeEnergy += kwhPerTick;
 
          const remainingKwh = this.config.batteryCapacity - charger.currentAgent.energyDelivered;
          charger.timeRemaining = (remainingKwh / kwhPerTick);
@@ -471,14 +572,23 @@ export class SimulationEngine {
                let pricePaid = 0;
 
                if (state.strategy === 'SIRQ') {
-                   revenue = charger.currentAgent.bid;
-                   pricePaid = revenue / this.config.batteryCapacity;
-                   
+                   // SIRQ: Vickrey (second-price) auction - winner pays second-highest bid
+                   // This ensures truthful bidding is the dominant strategy (Theorem 1)
                    const baseCost = (this.config.baseGridPrice * this.config.batteryCapacity) + this.config.baseServiceFee;
+                   revenue = charger.currentAgent.clearingPrice ?? baseCost;
+                   pricePaid = revenue / this.config.batteryCapacity;
+
                    const surplus = Math.max(0, revenue - baseCost);
                    this.cumulativeSirqSurplus += surplus;
 
+               } else if (state.strategy === 'POSTED_PRICE') {
+                   // Posted-Price: Agents pay fixed tier price
+                   const tierPrice = this.config.postedPrices?.[charger.currentAgent.type] || this.config.baseGridPrice;
+                   revenue = (tierPrice * this.config.batteryCapacity) + this.config.baseServiceFee;
+                   pricePaid = tierPrice;
+
                } else {
+                   // FIFO and PRIORITY_QUEUE: Standard dynamic pricing
                    revenue = (state.currentPrice * this.config.batteryCapacity) + this.config.baseServiceFee;
                    pricePaid = state.currentPrice;
                }
@@ -491,12 +601,18 @@ export class SimulationEngine {
 
                this.updateProfileStats(state, charger.currentAgent.type, waitTime);
 
+               // For Vickrey auction visualization
+               const clearingPrice = charger.currentAgent.clearingPrice ?? revenue;
+               const savings = charger.currentAgent.bid - clearingPrice;
+
                microUpdates.push({
                    tick: this.tickCount,
                    strategy: state.strategy,
                    type: charger.currentAgent.type,
                    vot: charger.currentAgent.vot,
                    bid: charger.currentAgent.bid,
+                   clearingPrice,
+                   savings: Math.max(0, savings), // Vickrey savings (bid - clearing price)
                    waitTime,
                    pricePaid
                });
@@ -512,6 +628,11 @@ export class SimulationEngine {
             charger.currentAgent = nextAgent;
             charger.currentAgent.status = 'charging';
             charger.currentAgent.enteredChargingAt = this.tickCount;
+
+            // Vickrey auction: set clearing price to second-highest bid
+            if (state.strategy === 'SIRQ' && !nextAgent.hasReservation) {
+                charger.currentAgent.clearingPrice = this.getSecondHighestBid(state.queue, nextAgent.bid);
+            }
         }
       }
     });
@@ -532,6 +653,28 @@ export class SimulationEngine {
      const startOfDayMinutes = 6 * 60; // 360
      const timeOfDayMinutes = (startOfDayMinutes + tick) % 1440; // 0-1440
 
+     // EPFL Calibration Mode: Use real-world arrival patterns from Swiss charging station
+     if (this.config.useEPFLCalibration) {
+         const dayOfWeek = Math.floor(tick / 1440) % 7; // Cycle through week
+         const scaleFactor = this.config.epflScaleFactor || 1.0;
+
+         // Scale by number of chargers (EPFL had 2 chargers)
+         const chargerRatio = this.config.numChargers / 2;
+
+         const epflRate = getArrivalProbability(timeOfDayMinutes, dayOfWeek, scaleFactor * chargerRatio);
+
+         // Calculate multiplier relative to base rate for display purposes
+         const baseRate = this.config.arrivalRate || 0.05;
+         const multiplier = epflRate / baseRate;
+
+         return {
+             rate: epflRate,
+             multiplier: Math.max(0.1, Math.min(multiplier, 5.0)), // Clamp for display
+             timeOfDayMinutes
+         };
+     }
+
+     // Legacy mode: Gaussian rush hours
      if (!this.config.enableRushHours) {
          return { rate: this.config.arrivalRate, multiplier: 1.0, timeOfDayMinutes };
      }
@@ -568,6 +711,8 @@ export class SimulationEngine {
   public tick(): {
       fifo: StationState,
       sirq: StationState,
+      postedPrice: StationState,
+      priorityQueue: StationState,
       historical: HistoricalDataPoint,
       microData: MicroDataPoint[],
       simTime: number,
@@ -582,8 +727,11 @@ export class SimulationEngine {
       newAgent = this.generateAgent(this.tickCount);
     }
 
+    // Process all 4 strategies with the same arrival
     const fifoMicro = this.processStation(this.fifoState, newAgent);
     const sirqMicro = this.processStation(this.sirqState, newAgent);
+    const postedPriceMicro = this.processStation(this.postedPriceState, newAgent);
+    const priorityQueueMicro = this.processStation(this.priorityQueueState, newAgent);
     
     // Utilization (SIRQ)
     const busyChargers = this.sirqState.chargers.filter(c => c.status === 'busy').length;
@@ -608,16 +756,29 @@ export class SimulationEngine {
     const fifoDemandPenalty = this.fifoState.peakGridLoad * this.config.peakDemandCharge;
     const sirqDemandPenalty = this.sirqState.peakGridLoad * this.config.peakDemandCharge;
 
+    // Calculate failure rates for new strategies
+    const postedPriceFailureRate = this.postedPriceCumulativeCriticalArrivals > 0
+        ? (this.postedPriceCumulativeCriticalFailures / this.postedPriceCumulativeCriticalArrivals)
+        : 0;
+
+    const priorityQueueFailureRate = this.priorityQueueCumulativeCriticalArrivals > 0
+        ? (this.priorityQueueCumulativeCriticalFailures / this.priorityQueueCumulativeCriticalArrivals)
+        : 0;
+
     return {
         fifo: this.fifoState,
         sirq: this.sirqState,
-        microData: [...fifoMicro, ...sirqMicro],
+        postedPrice: this.postedPriceState,
+        priorityQueue: this.priorityQueueState,
+        microData: [...fifoMicro, ...sirqMicro, ...postedPriceMicro, ...priorityQueueMicro],
         simTime: timeOfDayMinutes,
         trafficMultiplier: multiplier,
         historical: {
             tick: this.tickCount,
             fifoRevenue: this.fifoState.revenue,
             sirqRevenue: this.sirqState.revenue,
+            postedPriceRevenue: this.postedPriceState.revenue,
+            priorityQueueRevenue: this.priorityQueueState.revenue,
 
             fifoEnergyCost,
             sirqEnergyCost,
@@ -626,24 +787,32 @@ export class SimulationEngine {
 
             fifoBalked: this.fifoState.balkedCount,
             sirqBalked: this.sirqState.balkedCount,
+            postedPriceBalked: this.postedPriceState.balkedCount,
+            priorityQueueBalked: this.priorityQueueState.balkedCount,
             fifoBalkedPrice: this.fifoState.balkedPrice,
             sirqBalkedPrice: this.sirqState.balkedPrice,
             fifoBalkedWait: this.fifoState.balkedWait,
             sirqBalkedWait: this.sirqState.balkedWait,
-            
+
             fifoWaitCritical: this.fifoState.avgWaitTimeCritical,
             sirqWaitCritical: this.sirqState.avgWaitTimeCritical,
-            
-            // New Split Metrics
+            postedPriceWaitCritical: this.postedPriceState.avgWaitTimeCritical,
+            priorityQueueWaitCritical: this.priorityQueueState.avgWaitTimeCritical,
+
+            // Split Failure Rates for all strategies
             fifoFailureRate,
             sirqFailureRate,
+            postedPriceFailureRate,
+            priorityQueueFailureRate,
 
             fifoSlaViolations: this.fifoState.slaViolations,
             sirqSlaViolations: this.sirqState.slaViolations,
-            
+
             fifoWaitEconomy: this.fifoState.avgWaitTimeEconomy,
             sirqWaitEconomy: this.sirqState.avgWaitTimeEconomy,
-            
+            postedPriceWaitEconomy: this.postedPriceState.avgWaitTimeEconomy,
+            priorityQueueWaitEconomy: this.priorityQueueState.avgWaitTimeEconomy,
+
             fifoGridLoad: this.fifoState.currentGridLoad,
             sirqGridLoad: this.sirqState.currentGridLoad,
 
@@ -651,7 +820,7 @@ export class SimulationEngine {
             utilization: utilization,
             queueLength: this.sirqState.queue.length,
             surgeMultiplier: surgeMultiplier,
-            
+
             giniCoefficient: this.calculateGiniCoefficient(this.allWaitTimes),
             subsidyPool: this.cumulativeSirqSurplus,
             preemptions: this.cumulativePreemptions

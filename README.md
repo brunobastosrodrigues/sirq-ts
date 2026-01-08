@@ -1,125 +1,195 @@
-# SIRQ: System for Interactive Reservation and Queueing
+# SIRQ: Smart Incentive-Compatible Resource Queue
 
-Same idea of the Python-based repo https://github.com/brunobastosrodrigues/sirq-simulator, but "interpreted" by Google AI.
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.4-646cff.svg)](https://vitejs.dev/)
+[![License](https://img.shields.io/badge/License-Academic-green.svg)](#license)
 
-<img width="889" height="674" alt="sirq-landpage1" src="https://github.com/user-attachments/assets/80eaad0d-e2c4-499f-98b5-f412562fdbc2" />
+Interactive simulation of **Vickrey auction-based queue management** for electric truck charging stations.
 
+> **Paper**: *SIRQ: Auction-Based Queue Management for Electric Truck Charging*
+> IEEE Transactions on Intelligent Transportation Systems (under review)
 
-This project simulates rational economic agents with heterogeneous Value of Time (VOT) to demonstrate allocative efficiency in constrained infrastructure. The idea is to benchmark SIRQ Auctions against FIFO (First-In, First-Out) for electric truck charging infrastructure. The core hypothesis: Replacing FIFO with an auction mechanism maximizes economic efficiency and protects critical supply chains (e.g., medical/perishable logistics) without requiring physical infrastructure expansion.
+<p align="center">
+  <img width="800" alt="SIRQ Simulator" src="https://github.com/user-attachments/assets/80eaad0d-e2c4-499f-98b5-f412562fdbc2" />
+</p>
 
-## 🐳 Docker Deployment (Recommended)
+## Overview
 
-The easiest way to run SIRQ is using Docker. This method automatically handles all dependency installations and builds a production-ready container.
+SIRQ addresses a critical challenge in electric truck charging infrastructure: **how to efficiently allocate scarce charging slots among heterogeneous users with different time sensitivities**.
 
-> Quick note: the provided `docker-compose.yml` maps container port `80` to host port `8080` (so the app will be available at `http://localhost:8080`).
+Traditional FIFO (First-In-First-Out) queues treat all vehicles equally, but this ignores the economic reality that some cargo (medical supplies, perishables) has much higher time value than others (bulk commodities).
 
-### Using Docker Compose CLI (recommended)
+### Key Innovation: Vickrey (Second-Price) Auction
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/brunobastosrodrigues/sirq-ts.git
-   cd sirq-ts
-   ```
+SIRQ implements a **second-price sealed-bid auction** where:
+- The **highest bidder wins** the charging slot
+- But pays only the **second-highest bid**
 
-2. **Build & start the service (detached)**
-   ```bash
-   docker compose up -d --build
-   ```
+This mechanism guarantees **truthful bidding is the dominant strategy**. Agents have no incentive to shade their bids - they simply report their true willingness-to-pay.
 
-3. **View logs**
-   ```bash
-   docker compose logs -f sirq-app
-   ```
+```
+Theorem 1: In SIRQ's Vickrey auction, truthful bidding is optimal for all agent types.
+```
 
-4. **Stop and remove containers**
-   ```bash
-   docker compose down
-   ```
+## Features
 
-### Troubleshooting & tips
+- **4 Queue Strategies**: Compare FIFO, SIRQ (auction), Posted-Price, and Priority Queue
+- **Vickrey Auction**: Second-price mechanism with incentive compatibility guarantees
+- **Dynamic Pricing**: Surge pricing based on utilization and grid stress
+- **Realistic Physics**: Non-linear battery charging curves (saturation above 80% SoC)
+- **Comprehensive Analytics**: 8 dashboard tabs with exportable charts
+- **Real-time Visualization**: Side-by-side comparison of strategies
+- **Configurable Parameters**: Full control over station, pricing, and traffic settings
 
-- If port 8080 is already in use, map to a different host port (for example `-p 8081:80`), or update `docker-compose.yml`.
-- To run without building (if no source changes were made since the last build) omit `--build`.
-- Use the Docker Compose V2 CLI (`docker compose` — no hyphen), e.g. `docker compose up -d --build`; this is the recommended syntax on recent Docker versions.
+## Quick Start
 
----
+### Docker (Recommended)
 
-## 🚀 Quick Start (Local Installation)
+```bash
+git clone https://github.com/brunobastosrodrigues/sirq-ts.git
+cd sirq-ts
+docker compose up -d --build
+```
 
-If you prefer running it without Docker (e.g., for development):
+Open http://localhost:8080
 
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-- Git
+### Local Development
 
-### Installation
+```bash
+git clone https://github.com/brunobastosrodrigues/sirq-ts.git
+cd sirq-ts
+npm install
+npm run dev
+```
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/brunobastosrodrigues/sirq-ts.git
-   cd sirq-ts
-   ```
+Open http://localhost:5173
 
-2. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+## Usage Guide
 
-3. **Run Development Server**
-   ```bash
-   npm run dev
-   ```
+### Digital Twin View
 
-4. **Open in Browser**
-   Navigate to `http://localhost:5173`.
+<p align="center">
+  <img width="800" alt="Simulation View" src="https://github.com/user-attachments/assets/c7d695c3-bfbb-497b-a309-3bd26a19d186" />
+</p>
 
----
+The main view shows parallel simulations:
+- **Left Panel (FIFO)**: Standard first-come-first-served baseline
+- **Right Panel (SIRQ)**: Auction-based priority with preemption
 
-## 🔬 How to Use the Simulator
+**Agent Types**:
+| Color | Type | VOT | Description |
+|-------|------|-----|-------------|
+| Red | Critical | $150-300/hr | JIT logistics, perishables |
+| Blue | Standard | $50-80/hr | FMCG, corporate fleets |
+| Grey | Economy | $15-30/hr | Bulk cargo, owner-operators |
 
-### 1. Simulation
-<img width="1257" height="686" alt="image" src="https://github.com/user-attachments/assets/c7d695c3-bfbb-497b-a309-3bd26a19d186" />
+### Analytics Dashboard
 
-The main view shows two parallel universes:
+<p align="center">
+  <img width="800" alt="Analytics Dashboard" src="https://github.com/user-attachments/assets/8ff5257e-557a-4c04-a66c-40e3b3561667" />
+</p>
 
-- **Control Group (FIFO):** Standard first-come-first-served logic.
-- **Experimental (SIRQ):** Highest-bidder-first logic with preemption.
-- **Visuals:**
-  - **Red Trucks:** Critical Urgency (High Value of Time).
-  - **Blue Trucks:** Standard Urgency.
-  - **Grey Trucks:** Economy (Low Value of Time).
-- **Interpreting Events:** Watch the **Live Event Feed** on the right side of the canvas. It will narrate when a high-priority truck "skips" the queue or "preempts" (kicks out) a charging truck.
+| Tab | Metrics |
+|-----|---------|
+| **Vickrey Auction** | Bid vs clearing price, consumer surplus, savings by type |
+| **Strategy Comparison** | 4-way comparison across all strategies |
+| **Efficiency** | Revenue, utilization, queue dynamics |
+| **Reliability** | Critical cargo wait times and failure rates |
+| **Equity** | Gini coefficient, Lorenz curves, subsidy pool |
+| **Grid** | Power demand, transformer stress |
+| **Sensitivity** | Parameter exploration |
 
-### 2. Analytics (Results)
+### Configuration
 
-Click the **Analytics** tab to view real-time generated plots:
+Adjust simulation parameters in the **Lab Config** tab:
+- Station capacity and charger power
+- Pricing sensitivity and caps
+- Traffic mix and arrival rates
+- Agent behavior profiles
 
-<img width="1251" height="647" alt="sirq-analytics" src="https://github.com/user-attachments/assets/8ff5257e-557a-4c04-a66c-40e3b3561667" />
+## Technical Details
 
-- **Efficiency:** Revenue & Throughput.
-- **Reliability:** Wait times for Critical agents.
-- **Rationality:** Bidding behavior scatter plots.
-- **Equity:** The gap between service levels for rich vs. poor agents.
+### Bid Calculation
 
-### 3. Lab Config
+Agents bid their willingness-to-pay for immediate service:
 
-<img width="695" height="674" alt="sirq-config" src="https://github.com/user-attachments/assets/47aa302c-c315-4f10-af8e-4c11f849eb6b" />
+```typescript
+Bid = energyCost + serviceFee + (VOT / 60) × expectedWaitMinutes
+```
 
-Click the **Lab Config** tab to modify simulation parameters:
-- Change the number of chargers.
-- Adjust the "Smart Pricing" sensitivity.
-- Alter the Traffic Mix (e.g., simulate a disaster scenario with 80% Critical traffic).
+### Vickrey Payment
 
----
+Winners pay the second-highest bid (clearing price):
 
-## 🛠 Project Structure
+```typescript
+clearingPrice = getSecondHighestBid(queue, winnerBid)
+revenue = clearingPrice  // Not the winner's own bid
+```
 
-- `src/services/simulation.ts`: The core discrete-event simulation engine. Contains the physics (charging curves) and economic logic (bidding/auctions).
-- `src/components/SimulationCanvas.tsx`: The visual renderer for the Digital Twin.
-- `src/components/AnalyticsPanel.tsx`: Recharts-based plotting suite.
-- `src/components/ModelDocs.tsx`: Documentation of the mathematical formulas used.
+### Charging Physics
 
-## 📄 License
+Realistic saturation curve above 80% State-of-Charge:
+
+```typescript
+if (soc < 0.8) return maxPower;  // Full power (150 kW)
+else {
+  const progress = (soc - 0.8) / 0.2;
+  return maxPower * Math.pow(1 - progress, 2);  // Quadratic taper
+}
+```
+
+## Project Structure
+
+```
+sirq-ts/
+├── App.tsx                    # Main application
+├── types.ts                   # TypeScript interfaces
+├── services/
+│   ├── simulation.ts          # Core engine (Vickrey auction)
+│   └── epflDataLoader.ts      # Calibration data
+├── components/
+│   ├── SimulationCanvas.tsx   # Visual display
+│   ├── AnalyticsPanel.tsx     # Charts dashboard
+│   ├── AgentInspector.tsx     # Agent details
+│   └── ModelDocs.tsx          # In-app documentation
+└── experiments/               # Python scripts for paper figures
+```
+
+## Development
+
+```bash
+npm run dev          # Development server
+npm run build        # Production build
+npm run type-check   # TypeScript validation
+npm run lint         # ESLint
+npm run format       # Prettier
+```
+
+## Citation
+
+If you use SIRQ in your research, please cite:
+
+```bibtex
+@article{rodrigues2025sirq,
+  title={SIRQ: Auction-Based Queue Management for Electric Truck Charging},
+  author={Rodrigues, Bruno Bastos and others},
+  journal={IEEE Transactions on Intelligent Transportation Systems},
+  year={2025},
+  institution={University of St. Gallen (HSG) and University of Zurich (UZH)},
+  note={Under review}
+}
+```
+
+## References
+
+- Vickrey, W. (1961). Counterspeculation, auctions, and competitive sealed tenders. *Journal of Finance*, 16(1), 8-37.
+- EPFL EV Charging Dataset: https://github.com/DESL-EPFL/Level-3-EV-charging-dataset
+
+## License
+
 Academic Use Only.
-Institute of Computer Science in Vorarlberg (ICV-HSG) | Embedded Systems Group (ESG)
+
+A collaboration between:
+- **Embedded Sensing Group (ESG)** - University of St. Gallen (HSG)
+- **Communication Systems Group (CSG)** - University of Zurich (UZH)

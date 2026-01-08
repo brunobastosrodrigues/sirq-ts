@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, AreaChart, Area, ScatterChart, Scatter, ZAxis, ComposedChart, ReferenceLine
 } from 'recharts';
-import { HistoricalDataPoint, MicroDataPoint, AgentType, SimulationConfig } from '../types';
+import { HistoricalDataPoint, MicroDataPoint, SimulationConfig } from '../types';
 import { clsx } from 'clsx';
 import { Download } from 'lucide-react';
 
@@ -24,10 +24,10 @@ const ChartContainer: React.FC<{ title: string; subtitle?: string; children: Rea
         let source = serializer.serializeToString(svg);
         
         // Add namespace
-        if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+        if(!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)){
             source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
         }
-        if(!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)){
+        if(!source.match(/^<svg[^>]+"http:\/\/www\.w3\.org\/1999\/xlink"/)){
             source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
         }
 
@@ -79,15 +79,34 @@ const ChartContainer: React.FC<{ title: string; subtitle?: string; children: Rea
 };
 
 export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData, config }) => {
-  const [activeTab, setActiveTab] = useState<'efficiency' | 'financial' | 'reliability' | 'equity' | 'grid' | 'sensitivity'>('efficiency');
+  const [activeTab, setActiveTab] = useState<'auction' | 'comparison' | 'efficiency' | 'financial' | 'reliability' | 'equity' | 'grid' | 'sensitivity'>('auction');
 
   // Sub-sample data for performance
   const displayData = data.length > 200 ? data.filter((_, i) => i % 5 === 0) : data;
-  
+
   // Filter MicroData for Scatter Plots
   const scatterData = microData
     .filter(d => d.strategy === 'SIRQ')
     .slice(-300);
+
+  // Vickrey auction data - showing bid vs clearing price
+  const vickreyData = microData
+    .filter(d => d.strategy === 'SIRQ' && d.savings > 0)
+    .slice(-200);
+
+  // Calculate Vickrey summary statistics
+  const vickreySummary = (() => {
+    const sirqData = microData.filter(d => d.strategy === 'SIRQ');
+    if (sirqData.length === 0) return { avgSavings: 0, totalSavings: 0, avgBid: 0, avgClearing: 0, count: 0 };
+    const totalSavings = sirqData.reduce((sum, d) => sum + d.savings, 0);
+    const avgSavings = totalSavings / sirqData.length;
+    const avgBid = sirqData.reduce((sum, d) => sum + d.bid, 0) / sirqData.length;
+    const avgClearing = sirqData.reduce((sum, d) => sum + d.clearingPrice, 0) / sirqData.length;
+    return { avgSavings, totalSavings, avgBid, avgClearing, count: sirqData.length };
+  })();
+
+  // Latest data point for comparison cards
+  const latest = data[data.length - 1];
 
   const heatMapData = data.filter((_, i) => i % 10 === 0).map(d => ({
       x: d.utilization * 100, // Load %
@@ -116,6 +135,189 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData,
   const commonChartProps = {
       margin: { top: 10, right: 30, left: 20, bottom: 20 }
   };
+
+  // Summary card component
+  const StatCard: React.FC<{ label: string; value: string; subtext?: string; color?: string }> = ({ label, value, subtext, color = 'indigo' }) => (
+    <div className={`bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm`}>
+      <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</div>
+      <div className={`text-2xl font-bold text-${color}-600 dark:text-${color}-400 mt-1`}>{value}</div>
+      {subtext && <div className="text-xs text-slate-400 dark:text-slate-500 mt-1">{subtext}</div>}
+    </div>
+  );
+
+  const renderAuction = () => (
+    <div className="space-y-6">
+      {/* Vickrey Mechanism Explanation */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50 p-6 rounded-xl border border-indigo-200 dark:border-indigo-800">
+        <h3 className="text-lg font-bold text-indigo-900 dark:text-indigo-100 mb-2">Vickrey (Second-Price) Auction</h3>
+        <p className="text-sm text-indigo-700 dark:text-indigo-300 mb-4">
+          SIRQ implements a second-price sealed-bid auction. The highest bidder wins but pays only the <strong>second-highest bid</strong>.
+          This ensures <em>truthful bidding is the dominant strategy</em> (Theorem 1 in paper).
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard label="Avg Bid" value={`$${vickreySummary.avgBid.toFixed(0)}`} subtext="What agents offered" />
+          <StatCard label="Avg Clearing" value={`$${vickreySummary.avgClearing.toFixed(0)}`} subtext="What they paid" color="emerald" />
+          <StatCard label="Avg Savings" value={`$${vickreySummary.avgSavings.toFixed(0)}`} subtext="Per transaction" color="amber" />
+          <StatCard label="Total Savings" value={`$${vickreySummary.totalSavings.toFixed(0)}`} subtext={`${vickreySummary.count} transactions`} color="purple" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ChartContainer title="Bid vs Clearing Price" subtitle="Vickrey: winners pay 2nd-highest bid" id="chart-vickrey">
+          <ScatterChart {...commonChartProps}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis type="number" dataKey="bid" name="Bid" unit="$" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Bid Amount ($)', position: 'insideBottom', offset: -10 }} />
+            <YAxis type="number" dataKey="clearingPrice" name="Paid" unit="$" stroke="#94a3b8" tick={{fontSize: 10}} width={60} label={{ value: 'Clearing Price ($)', angle: -90, position: 'insideLeft', offset: 0 }} />
+            <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(val: number, name: string) => [`$${val.toFixed(0)}`, name]} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <ReferenceLine segment={[{ x: 0, y: 0 }, { x: 1000, y: 1000 }]} stroke="#94a3b8" strokeDasharray="5 5" label="First-Price" />
+            <Scatter name="Transactions" data={vickreyData} fill="#4f46e5" fillOpacity={0.6} />
+          </ScatterChart>
+        </ChartContainer>
+
+        <ChartContainer title="Vickrey Savings by Agent Type" subtitle="Distance below diagonal = consumer surplus" id="chart-savings">
+          <BarChart data={[
+            { type: 'Critical', savings: microData.filter(d => d.strategy === 'SIRQ' && d.type === 'CRITICAL').reduce((s, d) => s + d.savings, 0) / Math.max(1, microData.filter(d => d.strategy === 'SIRQ' && d.type === 'CRITICAL').length) },
+            { type: 'Standard', savings: microData.filter(d => d.strategy === 'SIRQ' && d.type === 'STANDARD').reduce((s, d) => s + d.savings, 0) / Math.max(1, microData.filter(d => d.strategy === 'SIRQ' && d.type === 'STANDARD').length) },
+            { type: 'Economy', savings: microData.filter(d => d.strategy === 'SIRQ' && d.type === 'ECONOMY').reduce((s, d) => s + d.savings, 0) / Math.max(1, microData.filter(d => d.strategy === 'SIRQ' && d.type === 'ECONOMY').length) }
+          ]} {...commonChartProps}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="type" />
+            <YAxis width={60} tickFormatter={(val) => `$${val}`} label={{ value: 'Avg Savings ($)', angle: -90, position: 'insideLeft', offset: 0 }} />
+            <Tooltip formatter={(val: number) => [`$${val.toFixed(0)}`, 'Savings']} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Bar dataKey="savings" fill="#10b981" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ChartContainer>
+
+        <ChartContainer title="Bidding Rationality" subtitle="Value of Time vs Willingness to Pay" id="chart-bid-rational">
+            <ScatterChart {...commonChartProps}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" dataKey="vot" name="Value of Time" unit="$/hr" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Value of Time ($/hr)', position: 'insideBottom', offset: -10 }} />
+              <YAxis type="number" dataKey="bid" name="Bid Amount" unit="$" stroke="#94a3b8" tick={{fontSize: 10}} width={60} label={{ value: 'Bid ($)', angle: -90, position: 'insideLeft', offset: 0 }} />
+              <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+              <Legend verticalAlign="top" height={36} />
+              <Scatter name="SIRQ Transactions" data={scatterData} fill="#4f46e5" fillOpacity={0.6} />
+            </ScatterChart>
+        </ChartContainer>
+
+        <ChartContainer title="Incentive Compatibility" subtitle="Truthful bidding is optimal (no bid shading)" id="chart-ic">
+          <LineChart data={displayData} {...commonChartProps}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Time (Ticks)', position: 'insideBottom', offset: -10 }} />
+            <YAxis stroke="#94a3b8" tick={{fontSize: 10}} width={60} tickFormatter={(val) => `$${val}`} label={{ value: 'Subsidy Pool ($)', angle: -90, position: 'insideLeft', offset: 0 }} />
+            <Tooltip formatter={(val: number) => [`$${val.toFixed(0)}`, '']} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Area type="monotone" dataKey="subsidyPool" name="Accumulated Surplus" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+          </LineChart>
+        </ChartContainer>
+      </div>
+    </div>
+  );
+
+  const renderComparison = () => (
+    <div className="space-y-6">
+      {/* Strategy Overview */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Queue Management Strategies</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+          <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border-l-4 border-slate-400">
+            <div className="font-bold text-slate-700 dark:text-slate-300">FIFO</div>
+            <div className="text-slate-500 dark:text-slate-400 text-xs mt-1">First-In-First-Out. No priority, fair but inefficient for time-critical cargo.</div>
+          </div>
+          <div className="p-4 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg border-l-4 border-indigo-500">
+            <div className="font-bold text-indigo-700 dark:text-indigo-300">SIRQ (Ours)</div>
+            <div className="text-indigo-600 dark:text-indigo-400 text-xs mt-1">Vickrey auction + dynamic pricing. Truthful bidding, efficient allocation.</div>
+          </div>
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/50 rounded-lg border-l-4 border-amber-500">
+            <div className="font-bold text-amber-700 dark:text-amber-300">Posted-Price</div>
+            <div className="text-amber-600 dark:text-amber-400 text-xs mt-1">Fixed tier prices. Simple but doesn't adapt to demand.</div>
+          </div>
+          <div className="p-4 bg-emerald-50 dark:bg-emerald-950/50 rounded-lg border-l-4 border-emerald-500">
+            <div className="font-bold text-emerald-700 dark:text-emerald-300">Priority Queue</div>
+            <div className="text-emerald-600 dark:text-emerald-400 text-xs mt-1">Strict type priority. Starves economy agents.</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Comparison Metrics */}
+      {latest && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">FIFO Revenue</div>
+            <div className="text-xl font-bold text-slate-600">${latest.fifoRevenue.toFixed(0)}</div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800">
+            <div className="text-xs font-medium text-indigo-500">SIRQ Revenue</div>
+            <div className="text-xl font-bold text-indigo-600">${latest.sirqRevenue.toFixed(0)}</div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-amber-200 dark:border-amber-800">
+            <div className="text-xs font-medium text-amber-500">Posted-Price Revenue</div>
+            <div className="text-xl font-bold text-amber-600">${latest.postedPriceRevenue.toFixed(0)}</div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800">
+            <div className="text-xs font-medium text-emerald-500">Priority Queue Revenue</div>
+            <div className="text-xl font-bold text-emerald-600">${latest.priorityQueueRevenue.toFixed(0)}</div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ChartContainer title="Revenue Comparison (All Strategies)" id="chart-rev-all">
+          <LineChart data={displayData} {...commonChartProps}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+            <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} />
+            <YAxis stroke="#94a3b8" tick={{fontSize: 10}} width={60} tickFormatter={(val) => `$${val}`} />
+            <Tooltip formatter={(val: number) => [`$${val.toFixed(0)}`, '']} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Legend verticalAlign="top" height={36} />
+            <Line type="monotone" dataKey="fifoRevenue" name="FIFO" stroke="#94a3b8" strokeWidth={1} dot={false} />
+            <Line type="monotone" dataKey="sirqRevenue" name="SIRQ" stroke="#4f46e5" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="postedPriceRevenue" name="Posted-Price" stroke="#f59e0b" strokeWidth={1} dot={false} />
+            <Line type="monotone" dataKey="priorityQueueRevenue" name="Priority Queue" stroke="#10b981" strokeWidth={1} dot={false} />
+          </LineChart>
+        </ChartContainer>
+
+        <ChartContainer title="Critical Wait Time (All Strategies)" id="chart-wait-all">
+          <LineChart data={displayData} {...commonChartProps}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+            <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} />
+            <YAxis stroke="#94a3b8" tick={{fontSize: 10}} width={60} label={{ value: 'Wait (ticks)', angle: -90, position: 'insideLeft', offset: 0 }} />
+            <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Legend verticalAlign="top" height={36} />
+            <Line type="monotone" dataKey="fifoWaitCritical" name="FIFO" stroke="#94a3b8" strokeWidth={1} dot={false} />
+            <Line type="monotone" dataKey="sirqWaitCritical" name="SIRQ" stroke="#4f46e5" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="postedPriceWaitCritical" name="Posted-Price" stroke="#f59e0b" strokeWidth={1} dot={false} />
+            <Line type="monotone" dataKey="priorityQueueWaitCritical" name="Priority Queue" stroke="#10b981" strokeWidth={1} dot={false} />
+          </LineChart>
+        </ChartContainer>
+
+        <ChartContainer title="Critical Failure Rate (All Strategies)" subtitle="% of critical cargo that balked/timed out" id="chart-fail-all">
+          <LineChart data={displayData} {...commonChartProps}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} />
+            <YAxis unit="%" width={60} tickFormatter={(val) => `${(val * 100).toFixed(0)}`} />
+            <Tooltip formatter={(val: number) => [`${(val * 100).toFixed(1)}%`, 'Rate']} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Legend verticalAlign="top" height={36} />
+            <Line type="monotone" dataKey="fifoFailureRate" name="FIFO" stroke="#94a3b8" strokeWidth={1} dot={false} />
+            <Line type="monotone" dataKey="sirqFailureRate" name="SIRQ" stroke="#4f46e5" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="postedPriceFailureRate" name="Posted-Price" stroke="#f59e0b" strokeWidth={1} dot={false} />
+            <Line type="monotone" dataKey="priorityQueueFailureRate" name="Priority Queue" stroke="#10b981" strokeWidth={1} dot={false} />
+          </LineChart>
+        </ChartContainer>
+
+        <ChartContainer title="Economy Wait Time (All Strategies)" subtitle="Fairness to low-priority users" id="chart-econ-all">
+          <LineChart data={displayData} {...commonChartProps}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="tick" stroke="#94a3b8" tick={{fontSize: 10}} />
+            <YAxis width={60} label={{ value: 'Wait (ticks)', angle: -90, position: 'insideLeft', offset: 0 }} />
+            <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Legend verticalAlign="top" height={36} />
+            <Line type="monotone" dataKey="fifoWaitEconomy" name="FIFO" stroke="#94a3b8" strokeWidth={1} dot={false} />
+            <Line type="monotone" dataKey="sirqWaitEconomy" name="SIRQ" stroke="#4f46e5" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="postedPriceWaitEconomy" name="Posted-Price" stroke="#f59e0b" strokeWidth={1} dot={false} />
+            <Line type="monotone" dataKey="priorityQueueWaitEconomy" name="Priority Queue" stroke="#10b981" strokeWidth={1} dot={false} />
+          </LineChart>
+        </ChartContainer>
+      </div>
+    </div>
+  );
 
   const renderEfficiency = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -328,20 +530,22 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData,
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 transition-colors">
        <div className="flex gap-2 p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10 shadow-sm overflow-x-auto transition-colors">
           {[
-              { id: 'efficiency', label: '1. Efficiency' },
-              { id: 'financial', label: '2. Financial' },
-              { id: 'reliability', label: '3. Reliability (Critical)' },
-              { id: 'equity', label: '4. Equity (Policy)' },
-              { id: 'grid', label: '5. Grid & Power' },
-              { id: 'sensitivity', label: '6. Sensitivity Lab' }
+              { id: 'auction', label: 'Vickrey Auction' },
+              { id: 'comparison', label: 'Strategy Comparison' },
+              { id: 'efficiency', label: 'Efficiency' },
+              { id: 'financial', label: 'Financial' },
+              { id: 'reliability', label: 'Reliability' },
+              { id: 'equity', label: 'Equity' },
+              { id: 'grid', label: 'Grid' },
+              { id: 'sensitivity', label: 'Sensitivity' }
           ].map(tab => (
-              <button 
+              <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 className={clsx(
                     "px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap",
-                    activeTab === tab.id 
-                    ? "bg-indigo-600 text-white shadow-md" 
+                    activeTab === tab.id
+                    ? "bg-indigo-600 text-white shadow-md"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                 )}
               >
@@ -349,8 +553,10 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ data, microData,
               </button>
           ))}
        </div>
-       
+
        <div className="flex-1 overflow-y-auto p-6 pb-20">
+           {activeTab === 'auction' && renderAuction()}
+           {activeTab === 'comparison' && renderComparison()}
            {activeTab === 'efficiency' && renderEfficiency()}
            {activeTab === 'financial' && renderFinancial()}
            {activeTab === 'reliability' && renderReliability()}

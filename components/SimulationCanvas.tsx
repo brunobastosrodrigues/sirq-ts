@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Agent, AgentType, StationState, SimulationConfig } from '../types';
 import { BatteryCharging, Truck, DollarSign, Clock, AlertTriangle, Info, List, CalendarCheck } from 'lucide-react';
 import { clsx } from 'clsx';

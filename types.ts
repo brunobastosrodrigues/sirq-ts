@@ -27,6 +27,7 @@ export interface Agent {
   hasReservation: boolean; // Thesis Ch 3.5: Route planning guarantee
   compensationBalance: number; // Earnings from buyouts
   preemptedCount: number; // Times displaced
+  clearingPrice?: number; // Vickrey auction: second-highest bid (what winner pays)
 }
 
 export interface Charger {
@@ -36,8 +37,11 @@ export interface Charger {
   timeRemaining: number;
 }
 
+// Strategy types for comparison
+export type StrategyType = 'FIFO' | 'SIRQ' | 'POSTED_PRICE' | 'PRIORITY_QUEUE';
+
 export interface StationState {
-  strategy: 'FIFO' | 'SIRQ';
+  strategy: StrategyType;
   chargers: Charger[];
   queue: Agent[];
   processedCount: number;
@@ -99,8 +103,15 @@ export interface SimulationConfig {
   enableRushHours: boolean;
   rushHourMultiplier: number;
 
+  // EPFL Calibration Mode (real-world data)
+  useEPFLCalibration: boolean;
+  epflScaleFactor: number; // Scale factor for truck scenario (trucks ~0.5x car arrivals)
+
   // Profiles (Editable)
   profiles: Record<AgentType, AgentProfile>;
+
+  // Posted-Price Configuration (fixed tier prices)
+  postedPrices: Record<AgentType, number>; // $/kWh per tier
 
   // Simulation
   numChargers: number;
@@ -113,6 +124,8 @@ export interface HistoricalDataPoint {
   // Efficiency & Financial
   fifoRevenue: number;
   sirqRevenue: number;
+  postedPriceRevenue: number;
+  priorityQueueRevenue: number;
   fifoEnergyCost: number;
   sirqEnergyCost: number;
   fifoDemandPenalty: number;
@@ -120,24 +133,30 @@ export interface HistoricalDataPoint {
 
   fifoBalked: number;
   sirqBalked: number;
+  postedPriceBalked: number;
+  priorityQueueBalked: number;
   fifoBalkedPrice: number;
   sirqBalkedPrice: number;
   fifoBalkedWait: number;
   sirqBalkedWait: number;
-  
-  // Reliability
+
+  // Reliability - Critical Wait Times
   fifoWaitCritical: number;
   sirqWaitCritical: number;
-  
+  postedPriceWaitCritical: number;
+  priorityQueueWaitCritical: number;
+
   // Split Failure Rates for Comparison
-  fifoFailureRate: number; 
+  fifoFailureRate: number;
   sirqFailureRate: number;
+  postedPriceFailureRate: number;
+  priorityQueueFailureRate: number;
 
   fifoSlaViolations: number;
   sirqSlaViolations: number;
 
   preemptions: number; // Count of auction swaps
-  
+
   // Grid
   fifoGridLoad: number;
   sirqGridLoad: number;
@@ -146,21 +165,25 @@ export interface HistoricalDataPoint {
   price: number;
   utilization: number; // 0.0 to 1.0
   queueLength: number;
-  surgeMultiplier: number; 
-  
+  surgeMultiplier: number;
+
   // Equity
   fifoWaitEconomy: number;
   sirqWaitEconomy: number;
+  postedPriceWaitEconomy: number;
+  priorityQueueWaitEconomy: number;
   giniCoefficient: number; // 0.0 to 1.0 (Wait time inequality)
   subsidyPool: number; // $ Accumulated surplus from auctions
 }
 
 export interface MicroDataPoint {
   tick: number;
-  strategy: 'FIFO' | 'SIRQ';
+  strategy: StrategyType;
   type: AgentType;
   vot: number;
   bid: number;
+  clearingPrice: number; // Vickrey: second-highest bid (what was actually paid)
+  savings: number; // bid - clearingPrice (Vickrey savings)
   waitTime: number;
   pricePaid: number; // $/kWh effective
 }
@@ -169,11 +192,17 @@ export interface SimulationSnapshot {
   tickCount: number;
   fifoState: StationState;
   sirqState: StationState;
+  postedPriceState: StationState;
+  priorityQueueState: StationState;
   // Separate counters for proper resumption
   fifoCumulativeCriticalArrivals: number;
   fifoCumulativeCriticalFailures: number;
   sirqCumulativeCriticalArrivals: number;
   sirqCumulativeCriticalFailures: number;
+  postedPriceCumulativeCriticalArrivals: number;
+  postedPriceCumulativeCriticalFailures: number;
+  priorityQueueCumulativeCriticalArrivals: number;
+  priorityQueueCumulativeCriticalFailures: number;
   cumulativeSirqSurplus: number;
   cumulativePreemptions: number;
   allWaitTimes: number[];

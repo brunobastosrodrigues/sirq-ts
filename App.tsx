@@ -35,11 +35,14 @@ const DEFAULT_CONFIG: SimulationConfig = {
   probEconomy: 0.20,
   enableRushHours: true,
   rushHourMultiplier: 2.5,
+  // EPFL Calibration
+  useEPFLCalibration: true,
+  epflScaleFactor: 5.0, // Scale for truck volumes
   // Sim
   numChargers: 4,
   arrivalRate: 0.10, // ~1 truck every 10 ticks
   simulationSpeed: 100,
-  
+
   // Profiles (Editable)
   profiles: {
     [AgentType.CRITICAL]: {
@@ -51,6 +54,12 @@ const DEFAULT_CONFIG: SimulationConfig = {
     [AgentType.ECONOMY]: {
         minVot: 15.0, maxVot: 30.0, patience: 45, priceSensitivity: 0.9, maxPriceTolerance: 0.80
     }
+  },
+  // Posted-Price Configuration (fixed tier prices in $/kWh)
+  postedPrices: {
+    [AgentType.CRITICAL]: 1.50,
+    [AgentType.STANDARD]: 0.80,
+    [AgentType.ECONOMY]: 0.50
   }
 };
 
@@ -70,11 +79,13 @@ export default function App() {
   const [microHistory, setMicroHistory] = useState<MicroDataPoint[]>([]);
   const [currentSimTime, setCurrentSimTime] = useState<number>(0);
   const [trafficMultiplier, setTrafficMultiplier] = useState<number>(1.0);
+  const [tickCount, setTickCount] = useState<number>(0);
   
   // Animation Control Refs
   const requestRef = useRef<number | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runningRef = useRef(isRunning);
+  const tickRef = useRef<() => void>(() => {});
   // Import flag to prevent auto-reset
   const isImportingRef = useRef(false);
   const pendingSnapshotRef = useRef<SimulationSnapshot | null>(null);
@@ -122,12 +133,12 @@ export default function App() {
 
   const tick = useCallback(() => {
     if (!engineRef.current || !runningRef.current) return;
-    
+
     // Run multiple logic ticks per frame if speed is high to simulate faster
-    const steps = Math.ceil(config.simulationSpeed / 50); 
-    
+    const steps = Math.ceil(config.simulationSpeed / 50);
+
     let lastResult;
-    let accumulatedMicro: MicroDataPoint[] = [];
+    const accumulatedMicro: MicroDataPoint[] = [];
 
     for (let i = 0; i < steps; i++) {
         const res = engineRef.current.tick();
@@ -140,21 +151,27 @@ export default function App() {
         setSirqState({ ...lastResult.sirq });
         setCurrentSimTime(lastResult.simTime);
         setTrafficMultiplier(lastResult.trafficMultiplier);
+        setTickCount(lastResult.historical.tick);
         setHistory(prev => [...prev, lastResult!.historical].slice(-500)); // Keep last 500
-        
+
         // Keep last 1000 micro data points to avoid memory explosion but allow scatter plots
         if (accumulatedMicro.length > 0) {
             setMicroHistory(prev => [...prev, ...accumulatedMicro].slice(-1000));
         }
     }
 
-    // Schedule next frame with throttle
+    // Schedule next frame with throttle using ref to avoid ESLint immutability warning
     if (runningRef.current) {
         timeoutRef.current = setTimeout(() => {
-             requestRef.current = requestAnimationFrame(tick);
+             requestRef.current = requestAnimationFrame(tickRef.current);
         }, 1000 / 30); // Cap at 30fps
     }
   }, [config.simulationSpeed]);
+
+  // Keep tickRef in sync with latest tick callback
+  useEffect(() => {
+    tickRef.current = tick;
+  }, [tick]);
 
   useEffect(() => {
     runningRef.current = isRunning;
@@ -396,7 +413,7 @@ export default function App() {
                         )}
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                        <span>Tick: {engineRef.current?.tickCount || 0}</span>
+                        <span>Tick: {tickCount}</span>
                         {trafficMultiplier > 1.1 && <span className="text-amber-600 dark:text-amber-400 font-bold uppercase">Rush Hour</span>}
                     </div>
                 </div>

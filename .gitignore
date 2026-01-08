@@ -22,3 +22,31 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code context files (internal development)
+CLAUDE.md
+**/CLAUDE.md
+
+# Python virtual environments
+venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Binary data files
+*.npz
+
+# EPFL calibration data (embedded in code, these are for Python experiments only)
+epfl_calibration.json
+epfl_sessions.json
+
+# Experiment outputs (keep experiments/ code but ignore outputs)
+experiments/results/
+experiments/figures/
+experiments/__pycache__/
+experiments/venv/
+
+# Backup files
+backup/
+*.bak
