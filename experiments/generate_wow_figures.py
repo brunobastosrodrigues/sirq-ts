@@ -251,11 +251,9 @@ def fig_hero_comparison():
 
 def fig_edf_paradox_explained():
     """
-    EDF Paradox figure with clear visual explanation.
-    Shows WHY EDF fails through urgency-patience relationship.
-    Sized to match Figure 7 proportions.
+    EDF Paradox figure - compact with minimal titles.
     """
-    fig, axes = plt.subplots(1, 2, figsize=(7.16, 2.2))
+    fig, axes = plt.subplots(1, 2, figsize=(7.16, 1.8))
 
     # Panel A: Urgency vs Patience scatter
     ax = axes[0]
@@ -263,24 +261,19 @@ def fig_edf_paradox_explained():
     np.random.seed(42)
     n_agents = 50
 
-    # Critical: high urgency, high patience
     crit_urgency = np.random.uniform(0.75, 0.95, n_agents//3)
     crit_patience = np.random.uniform(0.70, 0.95, n_agents//3)
-
-    # Standard: medium both
     std_urgency = np.random.uniform(0.35, 0.65, n_agents//3)
     std_patience = np.random.uniform(0.35, 0.65, n_agents//3)
-
-    # Economy: low urgency, low patience
     econ_urgency = np.random.uniform(0.05, 0.30, n_agents//3)
     econ_patience = np.random.uniform(0.10, 0.35, n_agents//3)
 
-    ax.scatter(crit_patience, crit_urgency, s=35, c=COLORS['CRITICAL'],
-               label='Critical', edgecolors='black', linewidths=0.3, alpha=0.8)
-    ax.scatter(std_patience, std_urgency, s=35, c=COLORS['STANDARD'],
-               label='Standard', edgecolors='black', linewidths=0.3, alpha=0.8)
-    ax.scatter(econ_patience, econ_urgency, s=35, c=COLORS['ECONOMY'],
-               label='Economy', edgecolors='black', linewidths=0.3, alpha=0.8)
+    ax.scatter(crit_patience, crit_urgency, s=25, c=COLORS['CRITICAL'],
+               label='Crit', edgecolors='black', linewidths=0.2, alpha=0.8)
+    ax.scatter(std_patience, std_urgency, s=25, c=COLORS['STANDARD'],
+               label='Std', edgecolors='black', linewidths=0.2, alpha=0.8)
+    ax.scatter(econ_patience, econ_urgency, s=25, c=COLORS['ECONOMY'],
+               label='Econ', edgecolors='black', linewidths=0.2, alpha=0.8)
 
     # Trend line
     all_patience = np.concatenate([crit_patience, std_patience, econ_patience])
@@ -288,23 +281,22 @@ def fig_edf_paradox_explained():
     z = np.polyfit(all_patience, all_urgency, 1)
     p = np.poly1d(z)
     x_line = np.linspace(0.1, 0.95, 100)
-    ax.plot(x_line, p(x_line), 'k--', alpha=0.5, linewidth=1, label='Trend')
+    ax.plot(x_line, p(x_line), 'k--', alpha=0.4, linewidth=0.8)
 
-    # EDF priority arrow (wrong direction!)
+    # EDF arrow
     ax.annotate('', xy=(0.15, 0.5), xytext=(0.90, 0.5),
-                arrowprops=dict(arrowstyle='->', color='red', lw=1.2))
-    ax.text(0.52, 0.58, 'EDF', ha='center', fontsize=5, color='red', fontweight='bold')
+                arrowprops=dict(arrowstyle='->', color='red', lw=1))
 
-    ax.set_xlabel('Patience', fontsize=6)
-    ax.set_ylabel('Urgency', fontsize=6)
-    ax.set_title('(a) Urgency-Patience', fontsize=7, fontweight='bold')
-    ax.legend(loc='lower right', fontsize=5, framealpha=0.5, edgecolor='none',
-              handletextpad=0.2, borderpad=0.2, labelspacing=0.15)
+    ax.set_xlabel('Patience', fontsize=5)
+    ax.set_ylabel('Urgency', fontsize=5)
+    ax.set_title('(a)', fontsize=6, fontweight='bold', pad=2)
+    ax.legend(loc='lower right', fontsize=4, framealpha=0.4, edgecolor='none',
+              handletextpad=0.1, borderpad=0.2, labelspacing=0.1)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    ax.tick_params(axis='both', labelsize=5)
+    ax.tick_params(axis='both', labelsize=4)
 
-    # Panel B: Wait time change by strategy and type
+    # Panel B: Wait time change
     ax = axes[1]
 
     results = load_results()
@@ -330,25 +322,19 @@ def fig_edf_paradox_explained():
         offset = (i - 1) * width
         lbl = 'SIRQ' if strategy == 'SIRQ' else strategy
         bars = ax.bar(x + offset, pct_changes, width, label=lbl,
-                      color=COLORS[strategy], edgecolor='black', linewidth=0.3)
+                      color=COLORS[strategy], edgecolor='black', linewidth=0.2)
 
-    ax.axhline(y=0, color='black', linewidth=0.5)
+    ax.axhline(y=0, color='black', linewidth=0.4)
     ax.set_xticks(x)
-    ax.set_xticklabels(agent_types, fontsize=5)
-    ax.set_ylabel('Wait vs FIFO (%)', fontsize=6)
-    ax.set_title('(b) EDF Paradox', fontsize=7, fontweight='bold')
-    ax.legend(loc='upper right', fontsize=5, framealpha=0.5, edgecolor='none',
-              handletextpad=0.2, borderpad=0.2, labelspacing=0.15)
+    ax.set_xticklabels(agent_types, fontsize=4)
+    ax.set_ylabel('Wait vs FIFO (%)', fontsize=5)
+    ax.set_title('(b)', fontsize=6, fontweight='bold', pad=2)
+    ax.legend(loc='upper right', fontsize=4, framealpha=0.4, edgecolor='none',
+              handletextpad=0.1, borderpad=0.2, labelspacing=0.1)
     ax.set_ylim(-80, 25)
-    ax.tick_params(axis='both', labelsize=5)
+    ax.tick_params(axis='both', labelsize=4)
 
-    # Highlight the paradox - smaller annotation
-    ax.annotate('EDF helps\nEconomy',
-                xy=(2, -35), xytext=(2.5, -60),
-                fontsize=5, ha='center', color='red',
-                arrowprops=dict(arrowstyle='->', color='red', lw=0.8))
-
-    plt.tight_layout(pad=0.3)
+    plt.tight_layout(pad=0.2)
     plt.savefig(OUTPUT_DIR / 'edf_paradox_explained.pdf')
     plt.savefig(OUTPUT_DIR / 'edf_paradox_explained.png')
     plt.close()
