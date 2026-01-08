@@ -189,17 +189,11 @@ def fig_hero_comparison():
                      markeredgecolor='black', markeredgewidth=0.5,
                      linewidth=1.5)
 
-    # Draw Pareto frontier arrow
-    ax5.annotate('', xy=(0.70, 48), xytext=(0.46, 31),
-                 arrowprops=dict(arrowstyle='->', color='gray', lw=2,
-                                connectionstyle='arc3,rad=0.2'))
-    ax5.text(0.58, 40, 'Efficiency-Fairness\nTradeoff', ha='center',
-             fontsize=10, color='gray', style='italic')
-
     ax5.set_xlabel('Gini Coefficient (higher = less fair)')
     ax5.set_ylabel('Revenue (\\$k/week)')
     ax5.set_title('(e) Pareto Frontier', fontsize=10, fontweight='bold')
-    ax5.legend(loc='lower right', fontsize=7, framealpha=0.7, edgecolor='gray')
+    ax5.legend(loc='upper left', fontsize=6, framealpha=0.6, edgecolor='none',
+               handletextpad=0.3, borderpad=0.3, labelspacing=0.2)
 
     # Panel F: Effect sizes as vertical bar chart (consistent with panels a, b, c)
     ax6 = fig.add_subplot(gs[1, 2])
