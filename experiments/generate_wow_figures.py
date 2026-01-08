@@ -171,7 +171,7 @@ def fig_hero_comparison():
     ax4.set_xlabel('Wait Time (min)')
     ax4.set_ylabel('Cumulative Probability')
     ax4.set_title('(d) Critical Wait CDF', fontsize=10, fontweight='bold')
-    ax4.legend(loc='upper left', fontsize=9, framealpha=0.95, edgecolor='gray')
+    ax4.legend(loc='lower right', fontsize=7, framealpha=0.7, edgecolor='gray')
     ax4.set_xlim(0, 400)
 
     # Panel E: Fairness-Efficiency Pareto frontier
@@ -199,7 +199,7 @@ def fig_hero_comparison():
     ax5.set_xlabel('Gini Coefficient (higher = less fair)')
     ax5.set_ylabel('Revenue (\\$k/week)')
     ax5.set_title('(e) Pareto Frontier', fontsize=10, fontweight='bold')
-    ax5.legend(loc='upper left', fontsize=9, framealpha=0.95, edgecolor='gray')
+    ax5.legend(loc='lower right', fontsize=7, framealpha=0.7, edgecolor='gray')
 
     # Panel F: Effect sizes as vertical bar chart (consistent with panels a, b, c)
     ax6 = fig.add_subplot(gs[1, 2])
@@ -305,8 +305,8 @@ def fig_edf_paradox_explained():
 
     ax.set_xlabel('Patience (normalized)')
     ax.set_ylabel('Urgency (normalized)')
-    ax.set_title('(a) Urgency-Patience Correlation', fontsize=10, fontweight='bold')
-    ax.legend(loc='lower right', fontsize=9, framealpha=0.95, edgecolor='gray')
+    ax.set_title('(a) Urgency-Patience Correlation', fontsize=9, fontweight='bold')
+    ax.legend(loc='lower right', fontsize=7, framealpha=0.7, edgecolor='gray')
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
@@ -350,8 +350,8 @@ def fig_edf_paradox_explained():
     ax.set_xticks(x)
     ax.set_xticklabels(agent_types)
     ax.set_ylabel('Wait Time Change vs FIFO (%)')
-    ax.set_title('(b) EDF Paradox', fontsize=10, fontweight='bold')
-    ax.legend(loc='lower left', fontsize=9, framealpha=0.95, edgecolor='gray')
+    ax.set_title('(b) EDF Paradox', fontsize=9, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=7, framealpha=0.7, edgecolor='gray')
     ax.set_ylim(-80, 25)
 
     # Highlight the paradox
@@ -400,8 +400,7 @@ def fig_sensitivity_combined():
         ax.set_xlabel('Number of Chargers')
         ax.set_ylabel('Critical Wait Time (min)')
         ax.set_title('(a) Scalability', fontsize=10, fontweight='bold')
-        ax.legend(loc='upper left', bbox_to_anchor=(0.02, 0.98), fontsize=9,
-                  framealpha=0.95, edgecolor='gray')
+        ax.legend(loc='upper right', fontsize=7, framealpha=0.7, edgecolor='gray')
 
         # Add congestion zone
         ax.axvspan(2, 4, alpha=0.1, color='red')
@@ -426,8 +425,7 @@ def fig_sensitivity_combined():
         ax.set_xlabel('Traffic Scale Factor')
         ax.set_ylabel('Critical Wait Time (min)')
         ax.set_title('(b) Traffic Intensity', fontsize=10, fontweight='bold')
-        ax.legend(loc='upper left', bbox_to_anchor=(0.02, 0.98), fontsize=9,
-                  framealpha=0.95, edgecolor='gray')
+        ax.legend(loc='upper right', fontsize=7, framealpha=0.7, edgecolor='gray')
 
     plt.tight_layout()
     plt.savefig(OUTPUT_DIR / 'sensitivity_combined.pdf')
