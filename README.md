@@ -181,10 +181,19 @@ If you use SIRQ in your research, please cite:
 }
 ```
 
+## Acknowledgments
+
+This work uses real-world charging session data from the **EPFL Distributed Electrical Systems Laboratory (DESL)**. We gratefully acknowledge their contribution to open research:
+
+> **Level-3 EV Charging Dataset**
+> EPFL-DESL, 2022-2023
+> https://github.com/DESL-EPFL/Level-3-EV-charging-dataset
+>
+> Dataset containing charging sessions from a Level-3 DC fast charging station, used for calibrating arrival patterns and session characteristics in this simulation.
+
 ## References
 
 - Vickrey, W. (1961). Counterspeculation, auctions, and competitive sealed tenders. *Journal of Finance*, 16(1), 8-37.
-- EPFL EV Charging Dataset: https://github.com/DESL-EPFL/Level-3-EV-charging-dataset
 
 ## License
 
