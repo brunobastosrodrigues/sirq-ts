@@ -18,16 +18,16 @@ import matplotlib.patheffects as path_effects
 from scipy import stats
 from pathlib import Path
 
-# IEEE style - INCREASED font sizes for legibility in print
+# IEEE style - Balanced font sizes for print legibility
 plt.rcParams.update({
     'font.family': 'serif',
     'font.serif': ['Times New Roman', 'DejaVu Serif'],
-    'font.size': 11,
-    'axes.labelsize': 11,
-    'axes.titlesize': 12,
-    'legend.fontsize': 10,
-    'xtick.labelsize': 10,
-    'ytick.labelsize': 10,
+    'font.size': 9,
+    'axes.labelsize': 9,
+    'axes.titlesize': 10,
+    'legend.fontsize': 7,
+    'xtick.labelsize': 8,
+    'ytick.labelsize': 8,
     'figure.dpi': 300,
     'savefig.dpi': 300,
     'savefig.bbox': 'tight',
