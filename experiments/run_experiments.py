@@ -441,15 +441,16 @@ def run_extended_experiments():
     df_bidding.to_parquet(output_dir / 'bidding_sensitivity.parquet')
     print(f"  Saved to bidding_sensitivity.parquet")
 
-    # Experiment 8: Extended Duration (4 weeks)
-    print("\n=== EXPERIMENT 8: Extended Duration (4 weeks) ===")
-    print("Testing: Does 1-week simulation capture steady-state behavior?")
+    # Experiment 8: Extended Duration (6 months)
+    print("\n=== EXPERIMENT 8: Extended Duration (6 months) ===")
+    print("Testing: Long-term steady-state behavior and seasonal variations")
+    # 6 months = 26 weeks = 262080 minutes
     df_extended = run_batch_experiments(
-        config, ticks=40320, num_runs=10,  # 4 weeks = 40320 minutes
+        config, ticks=262080, num_runs=5,  # 6 months, fewer runs due to duration
         calibration=calibration
     )
-    df_extended.to_parquet(output_dir / 'extended_duration.parquet')
-    print(f"  Saved to extended_duration.parquet")
+    df_extended.to_parquet(output_dir / 'extended_duration_6months.parquet')
+    print(f"  Saved to extended_duration_6months.parquet")
 
     # Experiment 9: SURGE_PRICING Baseline Comparison
     print("\n=== EXPERIMENT 9: Surge Pricing Baseline ===")
