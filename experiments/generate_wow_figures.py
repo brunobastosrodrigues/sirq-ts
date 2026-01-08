@@ -253,8 +253,9 @@ def fig_edf_paradox_explained():
     """
     EDF Paradox figure with clear visual explanation.
     Shows WHY EDF fails through urgency-patience relationship.
+    Sized to match Figure 7 proportions.
     """
-    fig, axes = plt.subplots(1, 2, figsize=(7.16, 2.8))
+    fig, axes = plt.subplots(1, 2, figsize=(7.16, 2.2))
 
     # Panel A: Urgency vs Patience scatter
     ax = axes[0]
@@ -274,12 +275,12 @@ def fig_edf_paradox_explained():
     econ_urgency = np.random.uniform(0.05, 0.30, n_agents//3)
     econ_patience = np.random.uniform(0.10, 0.35, n_agents//3)
 
-    ax.scatter(crit_patience, crit_urgency, s=80, c=COLORS['CRITICAL'],
-               label='Critical', edgecolors='black', linewidths=0.5, alpha=0.8)
-    ax.scatter(std_patience, std_urgency, s=80, c=COLORS['STANDARD'],
-               label='Standard', edgecolors='black', linewidths=0.5, alpha=0.8)
-    ax.scatter(econ_patience, econ_urgency, s=80, c=COLORS['ECONOMY'],
-               label='Economy', edgecolors='black', linewidths=0.5, alpha=0.8)
+    ax.scatter(crit_patience, crit_urgency, s=35, c=COLORS['CRITICAL'],
+               label='Critical', edgecolors='black', linewidths=0.3, alpha=0.8)
+    ax.scatter(std_patience, std_urgency, s=35, c=COLORS['STANDARD'],
+               label='Standard', edgecolors='black', linewidths=0.3, alpha=0.8)
+    ax.scatter(econ_patience, econ_urgency, s=35, c=COLORS['ECONOMY'],
+               label='Economy', edgecolors='black', linewidths=0.3, alpha=0.8)
 
     # Trend line
     all_patience = np.concatenate([crit_patience, std_patience, econ_patience])
@@ -287,22 +288,21 @@ def fig_edf_paradox_explained():
     z = np.polyfit(all_patience, all_urgency, 1)
     p = np.poly1d(z)
     x_line = np.linspace(0.1, 0.95, 100)
-    ax.plot(x_line, p(x_line), 'k--', alpha=0.5, linewidth=1.5, label='Inverse correlation')
+    ax.plot(x_line, p(x_line), 'k--', alpha=0.5, linewidth=1, label='Trend')
 
     # EDF priority arrow (wrong direction!)
     ax.annotate('', xy=(0.15, 0.5), xytext=(0.90, 0.5),
-                arrowprops=dict(arrowstyle='->', color='red', lw=2))
-    ax.text(0.52, 0.56, 'EDF Priority', ha='center',
-            fontsize=6, color='red', fontweight='bold')
-    ax.text(0.52, 0.44, '(short deadline)', ha='center',
-            fontsize=6, color='red')
+                arrowprops=dict(arrowstyle='->', color='red', lw=1.2))
+    ax.text(0.52, 0.58, 'EDF', ha='center', fontsize=5, color='red', fontweight='bold')
 
-    ax.set_xlabel('Patience (normalized)', fontsize=7)
-    ax.set_ylabel('Urgency (normalized)', fontsize=7)
-    ax.set_title('(a) Urgency-Patience Correlation', fontsize=8, fontweight='bold')
-    ax.legend(loc='lower right', fontsize=6, framealpha=0.6, edgecolor='none')
+    ax.set_xlabel('Patience', fontsize=6)
+    ax.set_ylabel('Urgency', fontsize=6)
+    ax.set_title('(a) Urgency-Patience', fontsize=7, fontweight='bold')
+    ax.legend(loc='lower right', fontsize=5, framealpha=0.5, edgecolor='none',
+              handletextpad=0.2, borderpad=0.2, labelspacing=0.15)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
+    ax.tick_params(axis='both', labelsize=5)
 
     # Panel B: Wait time change by strategy and type
     ax = axes[1]
@@ -312,7 +312,7 @@ def fig_edf_paradox_explained():
     fifo = df[df['strategy'] == 'FIFO']
 
     strategies = ['SIRQ', 'EDF', 'FCFS_R']
-    agent_types = ['Critical', 'Standard', 'Economy']
+    agent_types = ['Crit', 'Std', 'Econ']
     metrics = ['wait_critical_mean', 'wait_standard_mean', 'wait_economy_mean']
 
     x = np.arange(len(agent_types))
@@ -328,36 +328,27 @@ def fig_edf_paradox_explained():
             pct_changes.append(pct)
 
         offset = (i - 1) * width
-        bars = ax.bar(x + offset, pct_changes, width,
-                      label=strategy if strategy != 'SIRQ' else 'SIRQ (ours)',
-                      color=COLORS[strategy], edgecolor='black', linewidth=0.5)
+        lbl = 'SIRQ' if strategy == 'SIRQ' else strategy
+        bars = ax.bar(x + offset, pct_changes, width, label=lbl,
+                      color=COLORS[strategy], edgecolor='black', linewidth=0.3)
 
-        # Annotate significant changes
-        for j, pct in enumerate(pct_changes):
-            if abs(pct) > 30:
-                va = 'bottom' if pct > 0 else 'top'
-                offset_y = 3 if pct > 0 else -3
-                ax.text(x[j] + offset, pct + offset_y, f'{pct:.0f}%',
-                        ha='center', va=va, fontsize=6, fontweight='bold')
-
-    ax.axhline(y=0, color='black', linewidth=1)
+    ax.axhline(y=0, color='black', linewidth=0.5)
     ax.set_xticks(x)
-    ax.set_xticklabels(agent_types, fontsize=7)
-    ax.set_ylabel('Wait Time Change vs FIFO (%)', fontsize=7)
-    ax.set_title('(b) EDF Paradox', fontsize=8, fontweight='bold')
-    ax.legend(loc='upper right', fontsize=6, framealpha=0.6, edgecolor='none')
+    ax.set_xticklabels(agent_types, fontsize=5)
+    ax.set_ylabel('Wait vs FIFO (%)', fontsize=6)
+    ax.set_title('(b) EDF Paradox', fontsize=7, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=5, framealpha=0.5, edgecolor='none',
+              handletextpad=0.2, borderpad=0.2, labelspacing=0.15)
     ax.set_ylim(-80, 25)
+    ax.tick_params(axis='both', labelsize=5)
 
-    # Highlight the paradox
-    rect = plt.Rectangle((1.6, -45), 0.8, 50, fill=False,
-                          edgecolor='red', linewidth=1.5, linestyle='--')
-    ax.add_patch(rect)
-    ax.annotate('EDF helps\nEconomy!',
-                xy=(2, -20), xytext=(2.6, -55),
-                fontsize=7, ha='center', color='red', fontweight='bold',
-                arrowprops=dict(arrowstyle='->', color='red', lw=1))
+    # Highlight the paradox - smaller annotation
+    ax.annotate('EDF helps\nEconomy',
+                xy=(2, -35), xytext=(2.5, -60),
+                fontsize=5, ha='center', color='red',
+                arrowprops=dict(arrowstyle='->', color='red', lw=0.8))
 
-    plt.tight_layout()
+    plt.tight_layout(pad=0.3)
     plt.savefig(OUTPUT_DIR / 'edf_paradox_explained.pdf')
     plt.savefig(OUTPUT_DIR / 'edf_paradox_explained.png')
     plt.close()
