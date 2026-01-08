@@ -291,16 +291,16 @@ def fig_edf_paradox_explained():
 
     # EDF priority arrow (wrong direction!)
     ax.annotate('', xy=(0.15, 0.5), xytext=(0.90, 0.5),
-                arrowprops=dict(arrowstyle='->', color='red', lw=2.5))
-    ax.text(0.52, 0.56, 'EDF Priority Direction', ha='center',
-            fontsize=8, color='red', fontweight='bold')
-    ax.text(0.52, 0.44, '(shortest deadline first)', ha='center',
-            fontsize=9, color='red')
+                arrowprops=dict(arrowstyle='->', color='red', lw=2))
+    ax.text(0.52, 0.56, 'EDF Priority', ha='center',
+            fontsize=6, color='red', fontweight='bold')
+    ax.text(0.52, 0.44, '(short deadline)', ha='center',
+            fontsize=6, color='red')
 
-    ax.set_xlabel('Patience (normalized)')
-    ax.set_ylabel('Urgency (normalized)')
-    ax.set_title('(a) Urgency-Patience Correlation', fontsize=9, fontweight='bold')
-    ax.legend(loc='lower right', fontsize=7, framealpha=0.7, edgecolor='gray')
+    ax.set_xlabel('Patience (normalized)', fontsize=7)
+    ax.set_ylabel('Urgency (normalized)', fontsize=7)
+    ax.set_title('(a) Urgency-Patience Correlation', fontsize=8, fontweight='bold')
+    ax.legend(loc='lower right', fontsize=6, framealpha=0.6, edgecolor='none')
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
@@ -338,24 +338,24 @@ def fig_edf_paradox_explained():
                 va = 'bottom' if pct > 0 else 'top'
                 offset_y = 3 if pct > 0 else -3
                 ax.text(x[j] + offset, pct + offset_y, f'{pct:.0f}%',
-                        ha='center', va=va, fontsize=8, fontweight='bold')
+                        ha='center', va=va, fontsize=6, fontweight='bold')
 
     ax.axhline(y=0, color='black', linewidth=1)
     ax.set_xticks(x)
-    ax.set_xticklabels(agent_types)
-    ax.set_ylabel('Wait Time Change vs FIFO (%)')
-    ax.set_title('(b) EDF Paradox', fontsize=9, fontweight='bold')
-    ax.legend(loc='upper right', fontsize=7, framealpha=0.7, edgecolor='gray')
+    ax.set_xticklabels(agent_types, fontsize=7)
+    ax.set_ylabel('Wait Time Change vs FIFO (%)', fontsize=7)
+    ax.set_title('(b) EDF Paradox', fontsize=8, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=6, framealpha=0.6, edgecolor='none')
     ax.set_ylim(-80, 25)
 
     # Highlight the paradox
     rect = plt.Rectangle((1.6, -45), 0.8, 50, fill=False,
-                          edgecolor='red', linewidth=2, linestyle='--')
+                          edgecolor='red', linewidth=1.5, linestyle='--')
     ax.add_patch(rect)
     ax.annotate('EDF helps\nEconomy!',
                 xy=(2, -20), xytext=(2.6, -55),
-                fontsize=9, ha='center', color='red', fontweight='bold',
-                arrowprops=dict(arrowstyle='->', color='red', lw=1.5))
+                fontsize=7, ha='center', color='red', fontweight='bold',
+                arrowprops=dict(arrowstyle='->', color='red', lw=1))
 
     plt.tight_layout()
     plt.savefig(OUTPUT_DIR / 'edf_paradox_explained.pdf')
