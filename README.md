@@ -164,20 +164,6 @@ npm run lint         # ESLint
 npm run format       # Prettier
 ```
 
-## Citation
-
-If you use SIRQ in your research, please cite:
-
-```bibtex
-@article{rodrigues2025sirq,
-  title={SIRQ: Auction-Based Queue Management for Electric Truck Charging},
-  author={Rodrigues, Bruno Bastos and others},
-  journal={IEEE Transactions on Intelligent Transportation Systems},
-  year={2025},
-  institution={University of St. Gallen (HSG) and University of Zurich (UZH)},
-  note={Under review}
-}
-```
 
 ## Acknowledgments
 
