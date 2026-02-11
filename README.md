@@ -7,8 +7,6 @@
 
 Interactive simulation of **Vickrey auction-based queue management** for electric truck charging stations.
 
-> **Paper**: *SIRQ: Auction-Based Queue Management for Electric Truck Charging*
-> IEEE Transactions on Intelligent Transportation Systems (under review)
 
 <p align="center">
   <img width="800" alt="SIRQ Simulator" src="https://github.com/user-attachments/assets/80eaad0d-e2c4-499f-98b5-f412562fdbc2" />
